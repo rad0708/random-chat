@@ -1,3 +1,1 @@
-import { io } from '/socket.io/socket.io.js';
-
-// client.js full code here
+// 클라이언트 JS 코드
