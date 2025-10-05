@@ -1,1 +1,66 @@
-<!-- 메인 HTML 코드 -->
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>랜덤채팅</title>
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="logo">랜덤채팅 💬</div>
+    <div class="actions"><button id="toggle-theme">🌓</button></div>
+  </header>
+  <main class="container">
+    <aside class="sidebar">
+      <section class="card">
+        <h3>프로필</h3>
+        <label>닉네임</label>
+        <input id="nickname" placeholder="게스트" maxlength="20"/>
+        <label>성별</label>
+        <select id="gender">
+          <option value="unknown">선택안함</option>
+          <option value="male">남성</option>
+          <option value="female">여성</option>
+        </select>
+        <label>선호</label>
+        <select id="pref">
+          <option value="any">상관없음</option>
+          <option value="male">남성</option>
+          <option value="female">여성</option>
+        </select>
+        <div class="row gap">
+          <button id="btn-find" class="primary">랜덤 매칭</button>
+          <button id="btn-cancel" class="ghost">대기 취소</button>
+        </div>
+      </section>
+      <section class="card">
+        <h3>빠른기능</h3>
+        <div class="row gap">
+          <button id="btn-skip" class="warning">스킵</button>
+          <button id="btn-report" class="danger">신고</button>
+        </div>
+      </section>
+      <section class="card small">
+        <h3>상태</h3>
+        <div>내 해시: <code id="my-hash">-</code></div>
+        <div>상대 해시: <code id="peer-hash">-</code></div>
+      </section>
+    </aside>
+    <section class="chat card">
+      <div id="logs" class="logs"></div>
+      <div id="spinner" class="spinner hidden">
+        <div class="loader"></div>
+        <div>채팅방 준비 중...</div>
+      </div>
+      <form id="form" class="inputbar">
+        <input id="msg" placeholder="메시지를 입력하세요" autocomplete="off" />
+        <button class="primary" type="submit">보내기</button>
+      </form>
+    </section>
+  </main>
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/ads.js"></script>
+  <script src="/client.js" type="module"></script>
+</body>
+</html>

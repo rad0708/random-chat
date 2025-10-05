@@ -1,1 +1,1 @@
-// 광고 관련 코드
+// Placeholder for ads logic (Google AdSense etc.)

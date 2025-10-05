@@ -1,3 +1,6 @@
-# Random Chat 프로젝트
 
-랜덤 채팅 서비스입니다.
+# random-chat
+
+Production-ready anonymous random chat with matchmaking, Socket.IO, and MongoDB logging.
+
+See `.env.example` for required environment variables.
