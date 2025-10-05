@@ -17,7 +17,7 @@
     "express": "^4.19.2",
     "express-rate-limit": "^7.4.0",
     "helmet": "^7.1.0",
-    "mongo-sanitize": "^1.2.0",
+    "mongo-sanitize": "^1.1.0",
     "mongoose": "^8.6.0",
     "socket.io": "^4.7.5",
     "xss": "^1.0.14"
