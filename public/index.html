@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>랜덤 채팅</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/assets/icon-192.png">
+  <meta name="theme-color" content="#111827">
+  <link rel="stylesheet" href="/styles.css">
+  <script defer src="/socket.io/socket.io.js"></script>
+  <script defer src="/app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <button id="homeBtn" class="icon-btn" title="홈으로"><span>💬</span></button>
+    <div class="title">랜덤 채팅</div>
+    <div class="actions">
+      <span id="online" class="pill">접속자 0</span>
+      <button id="themeToggle" class="icon-btn" title="테마 전환">🌓</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="left">
+      <div class="profile-card" id="partnerCard">
+        <div class="avatar">👤</div>
+        <div class="info">
+          <div class="nickname" id="pNick">상대를 찾는 중…</div>
+          <div class="about" id="pAbout"></div>
+        </div>
+      </div>
+
+      <div class="profile-card">
+        <div class="avatar">🧑‍💻</div>
+        <div class="info">
+          <label for="meNick" class="nickname">내 프로필</label>
+          <input id="meNick" type="text" placeholder="닉네임 (최대 20자)" maxlength="20" />
+          <input id="meAbout" type="text" placeholder="소개글 (최대 80자)" maxlength="80" />
+        </div>
+      </div>
+
+      <div class="controls">
+        <button id="startBtn" class="primary">랜덤 매칭 시작</button>
+        <button id="nextBtn" class="ghost" disabled>다음 상대 찾기</button>
+      </div>
+
+      <div class="hints">
+        <p class="muted">팁: 브라우저 알림을 허용하면 새 메시지를 즉시 확인할 수 있어요.</p>
+      </div>
+    </section>
+
+    <section class="right chat">
+      <div id="messages" class="messages"></div>
+      <div id="typing" class="typing"></div>
+      <div class="input">
+        <div>
+          <div class="toolbar">
+            <span class="mini">Enter: 전송 · Shift+Enter: 줄바꿈 · Esc: 인용 취소</span>
+          </div>
+          <div id="replyPreview" class="reply-preview"></div>
+          <textarea id="text" placeholder="메시지를 입력하세요" rows="2"></textarea>
+        </div>
+        <button id="send" class="send">전송</button>
+      </div>
+      <div class="footer-hint">상업적 사용 가능 · 신고/이모지 등 불필요 기능 제거 · 가벼운 UI</div>
+    </section>
+  </main>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js');
+    }
+  </script>
+</body>
+</html>
