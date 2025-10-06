@@ -1,16 +1,16 @@
 {
-  "name": "random-chat-full-featured",
+  "name": "random-chat-final-read-receipt",
   "version": "1.0.0",
-  "description": "Random 1:1 chat with dark mode, reply, notifications, emoji/stickers, typing, online count.",
-  "main": "server.js",
+  "private": true,
+  "type": "commonjs",
   "scripts": {
     "start": "node server.js"
   },
-  "engines": {
-    "node": ">=18"
-  },
   "dependencies": {
     "express": "^4.19.2",
-    "socket.io": "^4.7.5"
+    "socket.io": "^4.7.5",
+    "uuid": "^9.0.1",
+    "compression": "^1.7.4",
+    "helmet": "^7.1.0"
   }
 }
