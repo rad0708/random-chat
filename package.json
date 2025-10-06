@@ -1,7 +1,7 @@
 {
   "name": "random-chat",
-  "version": "2.0.0",
-  "description": "Commercial-grade random chat website (Node.js, Express, Socket.IO)",
+  "version": "3.0.0",
+  "description": "Random chat with clean UX (Node.js, Express, Socket.IO)",
   "main": "server.js",
   "type": "commonjs",
   "scripts": {

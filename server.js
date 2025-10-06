@@ -31,18 +31,16 @@ app.use(compression());
 app.use(cors({ origin: ORIGIN === '*' ? true : ORIGIN }));
 app.use(express.static('public'));
 
-const io = new Server(server, {
-  cors: { origin: ORIGIN === '*' ? true : ORIGIN }
-});
+const io = new Server(server, { cors: { origin: ORIGIN === '*' ? true : ORIGIN } });
 
-// In-memory state (single instance). Use Redis adapter to scale horizontally.
-const waitingQueue = []; // [{ socketId, profile }]
-const peers = new Map(); // socketId -> partnerSocketId
-const profiles = new Map(); // socketId -> { nickname, about }
+// In-memory state
+const waitingQueue = [];
+const peers = new Map();
+const profiles = new Map();
 
 // Simple rate limit per socket
 const RATE_LIMIT = { tokens: 10, refillMs: 3000 };
-const buckets = new Map(); // socketId -> { tokens, last }
+const buckets = new Map();
 const getBucket = (id) => {
   const now = Date.now();
   let b = buckets.get(id);
@@ -96,20 +94,13 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('leave_queue', () => {
-    const idx = waitingQueue.findIndex(q => q.socketId === socket.id);
-    if (idx >= 0) waitingQueue.splice(idx, 1);
-  });
-
   socket.on('next', () => {
     const partnerId = peers.get(socket.id);
     if (partnerId) {
       peers.delete(socket.id);
       peers.delete(partnerId);
       safeEmit(partnerId, 'partner_left', { reason: '상대가 Next를 눌렀습니다.' });
-      if (io.sockets.sockets.get(partnerId)) {
-        waitingQueue.push({ socketId: partnerId, profile: profiles.get(partnerId) });
-      }
+      if (io.sockets.sockets.get(partnerId)) waitingQueue.push({ socketId: partnerId, profile: profiles.get(partnerId) });
     }
     if (!waitingQueue.find(q => q.socketId === socket.id)) {
       waitingQueue.push({ socketId: socket.id, profile: profiles.get(socket.id) });
@@ -123,7 +114,7 @@ io.on('connection', (socket) => {
     if (partnerId) safeEmit(partnerId, 'typing', !!isTyping);
   });
 
-  // minimal profanity mask (example), replace with robust service if needed
+  // Soft safety mask (extensible)
   const maskBadWords = (text) => {
     const bad = [/fuck/ig, /shit/ig];
     let t = text;
@@ -139,14 +130,8 @@ io.on('connection', (socket) => {
     text = maskBadWords(text);
 
     const partnerId = peers.get(socket.id);
-    const message = {
-      id: nanoid(10),
-      text,
-      ts: Date.now(),
-      from: socket.id,
-      replyTo: msg?.replyTo || null
-    };
-
+    const message = { id: nanoid(10), text, ts: Date.now(), from: socket.id };
+    // Echo back as ack
     safeEmit(socket.id, 'message_echo', message);
     if (partnerId) safeEmit(partnerId, 'message', message);
   });
@@ -156,7 +141,6 @@ io.on('connection', (socket) => {
     if (partnerId) safeEmit(partnerId, 'message_read', { id: messageId });
   });
 
-  // Client ping to measure RTT
   socket.on('client_ping', (ts) => {
     safeEmit(socket.id, 'client_pong', ts);
   });
@@ -164,23 +148,17 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     const idx = waitingQueue.findIndex(q => q.socketId === socket.id);
     if (idx >= 0) waitingQueue.splice(idx, 1);
-
     const partnerId = peers.get(socket.id);
     if (partnerId) {
       peers.delete(socket.id);
       peers.delete(partnerId);
       safeEmit(partnerId, 'partner_left', { reason: '상대가 나갔습니다.' });
-      if (io.sockets.sockets.get(partnerId)) {
-        waitingQueue.push({ socketId: partnerId, profile: profiles.get(partnerId) });
-      }
+      if (io.sockets.sockets.get(partnerId)) waitingQueue.push({ socketId: partnerId, profile: profiles.get(partnerId) });
     }
-
     profiles.delete(socket.id);
     buckets.delete(socket.id);
     io.emit('online_count', io.engine.clientsCount);
   });
 });
 
-server.listen(PORT, () => {
-  console.log(`Random Chat server running on http://localhost:${PORT}`);
-});
+server.listen(PORT, () => console.log(`Random Chat server running on http://localhost:${PORT}`));
