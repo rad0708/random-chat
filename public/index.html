@@ -2,119 +2,33 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
+  <title>Ntalk 스타일 랜덤채팅</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>RandomChat — 1:1 랜덤채팅</title>
-  <link rel="manifest" href="/manifest.json">
-  <link rel="icon" href="/logo.svg">
-  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <header class="header">
-    <div class="brand">
-      <img src="/logo.svg" alt="logo"/>
-      RandomChat
-    </div>
-    <nav class="nav">
-      <a href="#home">홈</a>
-      <a href="#chat">채팅</a>
-      <a href="#legal">정책</a>
-      <a href="https://github.com" target="_blank">GitHub</a>
-    </nav>
-  </header>
+  <div class="top-layout">
+    <header class="header">
+      <div class="icon">💬</div>
+      <div class="title">랜덤채팅</div>
+      <div class="lang">한국어 ▼</div>
+    </header>
 
-  <main id="home" class="container">
-    <section class="hero">
-      <div class="card">
-        <h1 style="margin:0 0 10px 0">전 세계 누군가와 지금 바로</h1>
-        <p style="color:var(--muted)">회원가입 없이 익명으로 1:1 채팅을 시작하세요. 새 상대 찾기, 타이핑 표시, 신고/차단 등 기본 안전 기능을 제공합니다.</p>
-        <div style="display:flex; gap:10px; margin-top:14px">
-          <button class="btn" onclick="goChat()">채팅 시작하기</button>
-          <button class="iconbtn" onclick="toggleTheme()">다크/라이트</button>
-        </div>
-        <div style="margin-top:18px; color:var(--muted); font-size:14px">
-          현재 접속자: <span id="onlineCount">—</span>명 · 매칭 상태: <span id="matchState">대기</span>
-        </div>
-      </div>
-      <div class="card">
-        <div style="height:340px; border:1px dashed var(--border); border-radius:12px; display:grid; grid-template-rows:auto 1fr auto">
-          <div style="padding:10px; border-bottom:1px solid var(--border); color:var(--muted)">미리보기</div>
-          <div id="preview" style="padding:12px; overflow:auto">
-            <div class="msg other">안녕하세요!<span class="time">오전 11:02</span></div>
-            <div class="msg mine">반가워요 👋<span class="time">오전 11:03</span></div>
-            <div class="system">상대방이 입력 중...</div>
-          </div>
-          <div style="padding:10px; border-top:1px solid var(--border); display:flex; gap:6px">
-            <div class="input"><input disabled placeholder="여기에 메시지..."><span style="color:var(--muted); font-size:12px; align-self:center">미리보기</span></div>
-            <button class="iconbtn">전송</button>
-          </div>
-        </div>
-      </div>
-    </section>
+    <main class="chat-container" id="chat">
+      <div class="system">환영합니다! 새 상대를 기다리는 중...</div>
+    </main>
 
-    <section class="features">
-      <div class="feature">
-        <h3>⚡ 즉시 매칭</h3>
-        <p style="color:var(--muted)">대기열 기반으로 2명이 모이면 자동 연결됩니다. 새 상대 버튼으로 즉시 교체.</p>
+    <footer class="footer">
+      <textarea id="input" placeholder="메시지를 입력하세요 (Enter=전송, Shift+Enter=줄바꿈)"></textarea>
+      <div class="buttons">
+        <button id="send">전송</button>
+        <button id="new">새 상대</button>
+        <button id="clear">지우기</button>
       </div>
-      <div class="feature">
-        <h3>🛡️ 기본 안전</h3>
-        <p style="color:var(--muted)">신고/차단, 불건전 단어 마스킹, 과속 전송 방지 등 기본 보호 기능.</p>
-      </div>
-      <div class="feature">
-        <h3>📱 반응형 UI</h3>
-        <p style="color:var(--muted)">모바일/데스크톱에서 모두 자연스럽게 사용할 수 있습니다.</p>
-      </div>
-    </section>
-  </main>
-
-  <section id="chat" class="chat-wrap" style="display:none">
-    <div class="statusbar">
-      <div class="status-pill">
-        <span id="stateDot">●</span><span id="stateText">대기 중</span>
-      </div>
-      <div style="display:flex; gap:8px">
-        <button class="iconbtn" id="btnNew">새 상대</button>
-        <button class="iconbtn" id="btnReport">신고</button>
-        <button class="iconbtn" onclick="goHome()">나가기</button>
-      </div>
-    </div>
-    <div id="chatArea" style="display:flex; flex-direction:column"></div>
-    <div class="toolbar">
-      <div class="input">
-        <input id="msgInput" minlength="1" maxlength="800" placeholder="메시지를 입력하세요" autocomplete="off">
-        <span id="typingHint" style="color:var(--muted); font-size:12px; align-self:center; display:none">상대방 입력 중...</span>
-      </div>
-      <button class="btn" id="btnSend">전송</button>
-    </div>
-  </section>
-
-  <section id="legal" class="container" style="display:none">
-    <div class="card">
-      <h3>이용 약관 & 개인정보</h3>
-      <p style="color:var(--muted)">예시 문구입니다. 실제 서비스 배포 시 페이지를 교체하세요.</p>
-      <ul>
-        <li>채팅 내용은 저장하지 않습니다.</li>
-        <li>부적절한 행위 신고 시 접속 차단될 수 있습니다.</li>
-      </ul>
-    </div>
-  </section>
-
-  <footer class="footer">© {year} RandomChat. Inspired by modern messaging apps.</footer>
+    </footer>
+  </div>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="/app.js"></script>
-  <script>
-    document.querySelector(".footer").innerHTML = "© " + new Date().getFullYear() + " RandomChat. Inspired by modern messaging apps.";
-    function goChat(){ location.hash = "#chat"; }
-    function goHome(){ location.hash = "#home"; }
-    function toggleTheme(){
-      const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg');
-      if(document.body.dataset.mode === "light"){
-        document.body.dataset.mode = "";
-        return;
-      }
-      document.body.dataset.mode = "light";
-    }
-  </script>
+  <script src="app.js"></script>
 </body>
 </html>
