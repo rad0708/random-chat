@@ -1,31 +1,91 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>랜덤 채팅</title>
-  <link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>랜덤채팅 - Lite</title>
+  <link rel="icon" href="./assets/favicon.svg">
+  <link rel="stylesheet" href="./style.css" />
 </head>
 <body>
-  <div id="home">
-    <h2>랜덤 채팅에 오신 걸 환영합니다 🎉</h2>
-    <input id="nickname" placeholder="닉네임 입력" />
-    <button id="startBtn">채팅 시작하기</button>
-  </div>
-  <div id="chat" style="display:none;">
-    <header>
-      <span id="online">접속자: 0명</span>
-      <button id="leaveBtn">나가기</button>
-    </header>
-    <ul id="messages"></ul>
-    <div id="typing"></div>
-    <form id="form">
-      <input id="input" autocomplete="off" placeholder="메시지를 입력하세요..." />
-      <button>전송</button>
-      <button type="button" id="nextBtn">다음</button>
-    </form>
-  </div>
+  <header class="app-header">
+    <button id="homeBtn" class="icon-btn" title="홈">
+      <img src="./assets/bubble.svg" alt="home" />
+    </button>
+
+    <div class="brand">랜덤채팅</div>
+
+    <div class="header-right">
+      <div id="online" class="online">접속자 0</div>
+      <button id="themeToggle" class="chip" title="다크모드 토글">🌙</button>
+      <button id="notifToggle" class="chip" title="알림">🔔</button>
+      <button id="soundToggle" class="chip" title="소리">🔊</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="left-pane">
+      <div class="card">
+        <h3>내 프로필</h3>
+        <label>닉네임
+          <input id="nickname" placeholder="닉네임 입력" maxlength="20" />
+        </label>
+        <label>성별
+          <select id="gender">
+            <option value="unknown">선택 안함</option>
+            <option value="male">남성</option>
+            <option value="female">여성</option>
+          </select>
+        </label>
+        <label>포인트 컬러
+          <input id="color" type="color" value="#3b82f6" />
+        </label>
+        <button id="startBtn" class="primary full">랜덤 매칭 시작</button>
+        <p class="hint">상업적 사용을 고려한 최소 수집(닉네임/성별/색상)만 저장(로컬)합니다.</p>
+      </div>
+
+      <div class="card">
+        <h3>빠른 액션</h3>
+        <div class="row">
+          <button id="nextBtn" class="secondary">다음 상대</button>
+          <button id="leaveBtn" class="danger">연결 종료</button>
+        </div>
+        <div id="status" class="status">대기 전</div>
+      </div>
+
+      <div class="card">
+        <h3>이모지 · 스티커</h3>
+        <div class="emoji-grid" id="emojiGrid"></div>
+        <div class="sticker-grid">
+          <img src="./assets/sticker1.svg" class="sticker" data-sticker="sticker1.svg">
+          <img src="./assets/sticker2.svg" class="sticker" data-sticker="sticker2.svg">
+          <img src="./assets/sticker3.svg" class="sticker" data-sticker="sticker3.svg">
+        </div>
+      </div>
+    </section>
+
+    <section class="chat-pane">
+      <ul id="messages" class="messages"></ul>
+      <div id="typing" class="typing" hidden>상대방이 입력 중…</div>
+
+      <div id="replyPreview" class="reply-preview" hidden>
+        <div class="rp-bar">
+          <span id="rpText"></span>
+          <button id="rpCancel" class="icon-btn">✕</button>
+        </div>
+      </div>
+
+      <form id="form" class="compose">
+        <button type="button" id="emojiBtn" class="icon-btn" title="이모지">😊</button>
+        <input id="input" autocomplete="off" placeholder="메시지를 입력…" />
+        <button type="submit" class="primary">전송</button>
+      </form>
+    </section>
+  </main>
+
+  <audio id="ding" src="./assets/ding.wav" preload="auto"></audio>
+
   <script src="/socket.io/socket.io.js"></script>
-  <script src="app.js"></script>
+  <script src="./main.js"></script>
 </body>
 </html>
