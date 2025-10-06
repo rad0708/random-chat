@@ -33,12 +33,12 @@ app.use(express.static('public'));
 
 const io = new Server(server, { cors: { origin: ORIGIN === '*' ? true : ORIGIN } });
 
-// In-memory (single instance). For scaling, add Redis adapter.
+// In-memory state
 const waitingQueue = []; // { socketId, nickname }
-const peers = new Map(); // sid -> partnerSid
-const nicknames = new Map(); // sid -> nickname
+const peers = new Map(); // socketId -> partnerSocketId
+const nicknames = new Map(); // socketId -> nickname
 
-// Simple token bucket per socket
+// Token bucket per socket
 const RATE_LIMIT = { tokens: 10, refillMs: 3000 };
 const buckets = new Map();
 const getBucket = (id) => {
@@ -105,7 +105,7 @@ io.on('connection', (socket) => {
     if (partnerId) safeEmit(partnerId, 'typing', !!flag);
   });
 
-  // Soft mask
+  // soft mask
   const mask = (t) => {
     const bad = [/fuck/ig, /shit/ig];
     let x = t; bad.forEach(rx=>x=x.replace(rx, (m)=>'*'.repeat(m.length))); return x;

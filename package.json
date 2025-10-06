@@ -1,7 +1,7 @@
 {
   "name": "random-chat",
-  "version": "4.0.0",
-  "description": "Modern random chat (Node.js, Express, Socket.IO)",
+  "version": "5.0.0",
+  "description": "Full-screen modern random chat (Node.js, Express, Socket.IO)",
   "main": "server.js",
   "type": "commonjs",
   "scripts": {
