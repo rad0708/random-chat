@@ -20,10 +20,10 @@ app.use(helmet({
     useDefaults: true,
     directives: {
       "script-src": ["'self'", "'unsafe-inline'"],
-      "img-src": ["'self'", 'data:'],
+      "img-src": ["'self'", "data:"],
       "connect-src": ["'self'", ORIGIN, `ws://localhost:${PORT}`, `http://localhost:${PORT}`],
       "manifest-src": ["'self'"],
-      "media-src": ["'self'", 'data:']
+      "media-src": ["'self'", "data:"]
     }
   }
 }));
@@ -35,15 +35,14 @@ const io = new Server(server, {
   cors: { origin: ORIGIN === '*' ? true : ORIGIN }
 });
 
-// In-memory state
+// In-memory state (single instance). Use Redis adapter to scale horizontally.
 const waitingQueue = []; // [{ socketId, profile }]
 const peers = new Map(); // socketId -> partnerSocketId
 const profiles = new Map(); // socketId -> { nickname, about }
 
-// Rate limiting (simple token bucket per socket)
+// Simple rate limit per socket
 const RATE_LIMIT = { tokens: 10, refillMs: 3000 };
 const buckets = new Map(); // socketId -> { tokens, last }
-
 const getBucket = (id) => {
   const now = Date.now();
   let b = buckets.get(id);
@@ -56,16 +55,8 @@ const getBucket = (id) => {
   }
   return b;
 };
-
-function allow(id) {
-  const b = getBucket(id);
-  if (b.tokens > 0) { b.tokens--; return true; }
-  return false;
-}
-
-function safeEmit(to, event, payload) {
-  try { io.to(to).emit(event, payload); } catch (_) {}
-}
+function allow(id) { const b = getBucket(id); if (b.tokens > 0) { b.tokens--; return true; } return false; }
+function safeEmit(to, event, payload) { try { io.to(to).emit(event, payload); } catch (_) {} }
 
 function pairIfPossible() {
   while (waitingQueue.length >= 2) {
@@ -132,11 +123,20 @@ io.on('connection', (socket) => {
     if (partnerId) safeEmit(partnerId, 'typing', !!isTyping);
   });
 
+  // minimal profanity mask (example), replace with robust service if needed
+  const maskBadWords = (text) => {
+    const bad = [/fuck/ig, /shit/ig];
+    let t = text;
+    bad.forEach(rx => t = t.replace(rx, (m)=>'*'.repeat(m.length)));
+    return t;
+  };
+
   socket.on('message', (msg) => {
     if (!allow(socket.id)) return;
-    const text = String(msg?.text || '').trim();
+    let text = String(msg?.text || '').trim();
     if (!text) return;
     if (text.length > 1000) return;
+    text = maskBadWords(text);
 
     const partnerId = peers.get(socket.id);
     const message = {
@@ -154,6 +154,11 @@ io.on('connection', (socket) => {
   socket.on('message_read', (messageId) => {
     const partnerId = peers.get(socket.id);
     if (partnerId) safeEmit(partnerId, 'message_read', { id: messageId });
+  });
+
+  // Client ping to measure RTT
+  socket.on('client_ping', (ts) => {
+    safeEmit(socket.id, 'client_pong', ts);
   });
 
   socket.on('disconnect', () => {
