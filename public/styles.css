@@ -1,84 +1,101 @@
-/* 기본 레이아웃 */
-:root{
-  --bg:#f6f7fb;
-  --surface:#ffffff;
-  --text:#1e1e1e;
-  --muted:#8a8f98;
-  --primary:#4f7cff;
-  --border:#e7e9ee;
-  --bubble:#edf0f6;
-  --mine:#4f7cff;
-  --mine-text:#fff;
-}
-body.dark {
-  --bg:#0f1116;
-  --surface:#171a21;
-  --text:#e9ecf1;
-  --muted:#9aa4b2;
-  --primary:#7da2ff;
-  --border:#242a35;
-  --bubble:#202633;
-  --mine:#7da2ff;
-  --mine-text:#0b0d12;
-}
-* { box-sizing: border-box; }
-html, body { height: 100%; }
 body {
-  margin:0; background:var(--bg); color:var(--text);
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, '맑은 고딕', sans-serif;
+  margin: 0;
+  font-family: 'Arial', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  display: flex;
+  height: 100vh;
 }
-.hidden{ display:none; }
 
-.app{ display:flex; flex-direction:column; height:100vh; }
-
-.header{
-  display:flex; justify-content:space-between; align-items:center;
-  padding:10px 16px; background:var(--surface); border-bottom:1px solid var(--border);
-  position: sticky; top: 0; z-index: 10;
+:root {
+  --bg: #ffffff;
+  --text: #1e1e1e;
+  --bubble-me: #4a90e2;
+  --bubble-other: #e5e5ea;
+  --system: #d3d3d3;
 }
-.brand{ font-weight:700; }
-.header .actions{ display:flex; gap:8px; align-items:center; }
-.header button{ padding:6px 10px; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--text); cursor:pointer; }
-.header button.primary{ background:var(--primary); color:#fff; border:none; }
-.users{ color:var(--muted); font-size:14px; margin-left:4px; }
 
-.pane{ max-width:980px; width:100%; margin:0 auto; padding:16px; }
-.form{ display:flex; flex-direction:column; gap:12px; background:var(--surface); padding:16px; border:1px solid var(--border); border-radius:16px; }
-.form input[type="text"]{ width:100%; padding:12px; border:1px solid var(--border); border-radius:10px; background:var(--surface); color:var(--text); }
-.gender-row{ display:flex; gap:12px; align-items:center; color:var(--muted); }
-.primary{ background:var(--primary) !important; color:#fff !important; border:none !important; }
-.hint{ color:var(--muted); margin-top:10px; }
-
-/* 채팅 */
-.statusbar{
-  display:flex; justify-content:space-between; align-items:center;
-  margin-bottom:8px; color:var(--muted);
+body.dark {
+  --bg: #121212;
+  --text: #f5f5f5;
+  --bubble-me: #1565c0;
+  --bubble-other: #333333;
+  --system: #444;
 }
-.status-actions{ display:flex; gap:8px; }
-.status-actions button{ padding:6px 10px; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--text); cursor:pointer; }
 
-.chat{
-  background:var(--surface);
-  border:1px solid var(--border);
-  border-radius:16px;
-  padding:12px; height:60vh; overflow-y:auto; display:flex; flex-direction:column; gap:10px;
+.screen {
+  display: none;
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
 }
-.msg{ max-width:75%; padding:10px 14px; border-radius:14px; background:var(--bubble); color:var(--text); position:relative; word-break:break-word; }
-.msg .meta{ display:flex; gap:6px; color:var(--muted); font-size:12px; margin-top:6px; }
-.mine{ align-self:flex-end; background:var(--mine); color:var(--mine-text); }
-.mine .meta{ color:rgba(255,255,255,0.8); }
-.peer{ align-self:flex-start; }
-.sys{ align-self:center; color:var(--muted); font-size:13px; }
 
-.inputbar{ margin-top:10px; display:flex; gap:8px; }
-.inputbar textarea{ flex:1; resize:none; border:1px solid var(--border); border-radius:12px; padding:10px; background:var(--surface); color:var(--text); }
-.inputbar button{ padding:10px 14px; border-radius:12px; border:none; background:var(--primary); color:#fff; cursor:pointer; }
+.screen.active {
+  display: flex;
+}
 
-.typing{ height:18px; color:var(--muted); font-size:13px; padding:4px 2px; }
+#home-screen {
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
 
-/* 반응형 */
-@media (max-width:640px){
-  .chat{ height:58vh; }
-  .header .actions { gap:6px; }
-  .users{ display:none; }
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  background: var(--system);
+}
+
+#chat-box {
+  flex: 1;
+  padding: 10px;
+  overflow-y: auto;
+}
+
+footer {
+  display: flex;
+  gap: 5px;
+  padding: 10px;
+  background: var(--system);
+}
+
+textarea {
+  flex: 1;
+  resize: none;
+}
+
+.bubble {
+  padding: 10px;
+  margin: 5px 0;
+  border-radius: 12px;
+  max-width: 70%;
+  word-wrap: break-word;
+  position: relative;
+}
+
+.me {
+  background: var(--bubble-me);
+  color: #fff;
+  margin-left: auto;
+}
+
+.other {
+  background: var(--bubble-other);
+  margin-right: auto;
+}
+
+.system {
+  background: var(--system);
+  text-align: center;
+  margin: 10px auto;
+  font-size: 0.9em;
+}
+
+.time {
+  font-size: 0.7em;
+  color: gray;
+  display: block;
+  margin-top: 2px;
 }

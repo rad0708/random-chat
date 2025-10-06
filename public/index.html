@@ -1,61 +1,46 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>랜덤채팅 - 한국어판</title>
-  <link rel="stylesheet" href="styles.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>랜덤 채팅</title>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div class="app">
-    <!-- 상단바 -->
-    <header class="header">
-      <div class="brand">💬 랜덤채팅</div>
-      <div class="actions">
-        <button id="themeToggle" aria-label="테마 전환">라이트</button>
-        <button id="soundToggle" aria-label="알림음 전환">🔔 켜짐</button>
-        <span id="users" class="users">접속자 0명</span>
-      </div>
+  <!-- 홈 화면 -->
+  <div id="home-screen" class="screen active">
+    <h1>랜덤 채팅 🎉</h1>
+    <div class="form-group">
+      <label>닉네임</label>
+      <input type="text" id="nickname" placeholder="닉네임을 입력하세요">
+    </div>
+    <div class="form-group">
+      <label>성별</label>
+      <select id="gender">
+        <option value="male">남성</option>
+        <option value="female">여성</option>
+        <option value="none">선택 안 함</option>
+      </select>
+    </div>
+    <button id="startChat">대화 시작</button>
+  </div>
+
+  <!-- 채팅 화면 -->
+  <div id="chat-screen" class="screen">
+    <header>
+      <div id="homeBtn" class="icon">💬</div>
+      <div id="status">🟡 대기 중</div>
+      <div id="themeToggle">🌙</div>
     </header>
 
-    <!-- 프로필 설정 -->
-    <section id="profilePane" class="pane">
-      <h2>대화 시작 전 간단 설정</h2>
-      <div class="form">
-        <label>닉네임
-          <input id="nickname" type="text" placeholder="예: 바닐라라떼" maxlength="16" />
-        </label>
-        <div class="gender-row">
-          <span>성별</span>
-          <label><input type="radio" name="gender" value="남성" checked /> 남성</label>
-          <label><input type="radio" name="gender" value="여성" /> 여성</label>
-          <label><input type="radio" name="gender" value="비공개" /> 비공개</label>
-        </div>
-        <button id="startBtn" class="primary">대화 시작</button>
-      </div>
-      <p class="hint">닉네임만 상대방에게 표시됩니다. 개인정보 입력 금지!</p>
-    </section>
+    <main id="chat-box"></main>
 
-    <!-- 채팅 화면 -->
-    <section id="chatPane" class="pane hidden">
-      <div class="statusbar">
-        <span id="status">상대방을 기다리는 중…</span>
-        <div class="status-actions">
-          <button id="newBtn">새 상대</button>
-          <button id="clearBtn">지우기</button>
-        </div>
-      </div>
-
-      <main id="chat" class="chat">
-        <div class="sys">환영합니다! ‘대화 시작’을 눌러 상대를 찾아보세요.</div>
-      </main>
-
-      <div class="inputbar">
-        <textarea id="input" rows="2" placeholder="메시지를 입력하세요 (Enter: 전송, Shift+Enter: 줄바꿈)"></textarea>
-        <button id="sendBtn" class="primary">전송</button>
-      </div>
-      <div class="typing" id="typing" aria-live="polite"></div>
-    </section>
+    <footer>
+      <textarea id="messageInput" placeholder="메시지를 입력하세요 (Enter 전송, Shift+Enter 줄바꿈)"></textarea>
+      <button id="sendBtn">전송</button>
+      <button id="newBtn">새 상대</button>
+      <button id="clearBtn">지우기</button>
+    </footer>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
