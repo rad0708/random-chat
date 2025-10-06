@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>랜덤 채팅</title>
-  <meta name="description" content="가볍고 빠른 랜덤 채팅 — 닉네임만으로 바로 대화 시작">
+  <meta name="description" content="현대적인 랜덤 채팅 — 닉네임만 입력하고 바로 대화 시작">
   <meta name="theme-color" content="#111827">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/assets/icon-192.png">
@@ -15,48 +15,33 @@
 <body>
   <header class="topbar">
     <div class="brand"><div class="logo">💬</div> 랜덤 채팅</div>
-    <div class="center"><span id="statusText">대기 중</span></div>
-    <div class="right">
+    <div class="controls">
       <span id="online" class="pill">접속자 0</span>
+      <span id="rttWrap" class="pill">지연: <span id="rtt">-</span> ms</span>
       <button id="themeToggle" class="icon-btn" title="테마 전환">🌓</button>
     </div>
   </header>
 
-  <main class="container">
-    <section class="left">
-      <div class="card profile-card" id="partnerCard">
-        <div class="avatar">👤</div>
-        <div class="info">
-          <div class="nickname" id="pNick">상대를 찾는 중…</div>
-          <div class="about" id="pAbout"></div>
-        </div>
+  <main class="shell">
+    <aside class="sidebar">
+      <div class="field">
+        <label>닉네임</label>
+        <input id="nickname" class="inputbox" type="text" placeholder="닉네임 (최대 20자)" maxlength="20">
       </div>
+      <button id="startBtn" class="primary">랜덤 매칭 시작</button>
+      <button id="nextBtn" class="ghost">다음 상대</button>
+      <div class="field" style="color:var(--muted); font-size:12px;">
+        * 필수 기능만 남긴 초간단 인터페이스 — 불편함 없이 빠르게 대화하세요.
+      </div>
+    </aside>
 
-      <div class="card">
-        <div class="nickname">내 프로필</div>
-        <input id="meNick" class="inputbox" type="text" placeholder="닉네임 (최대 20자)" maxlength="20" />
-        <input id="meAbout" class="inputbox" type="text" placeholder="간단 소개 (최대 80자)" maxlength="80" />
-      </div>
-
-      <div class="controls">
-        <button id="startBtn" class="primary">랜덤 매칭 시작</button>
-        <button id="nextBtn" class="ghost">다음 상대</button>
-      </div>
-    </section>
-
-    <section class="right chat">
-      <div class="toolbar">
-        <span>연결 상태</span>
-        <span style="flex:1"></span>
-        <span class="rtt">지연: <strong id="rtt">-</strong> ms</span>
-      </div>
+    <section class="chat">
+      <div class="toolbar"><span id="statusText">대기 중</span><span style="flex:1"></span><span class="rtt">📶</span></div>
       <div id="messages" class="messages"></div>
-      <div id="typing" class="typing"></div>
       <div class="input">
         <textarea id="text" placeholder="메시지를 입력하세요" rows="2" aria-label="메시지 입력"></textarea>
         <button id="send" class="send">전송</button>
       </div>
-      <div class="footer-hint">필수 기능만, 깔끔한 UI · PWA 지원</div>
     </section>
   </main>
 

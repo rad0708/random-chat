@@ -33,12 +33,12 @@ app.use(express.static('public'));
 
 const io = new Server(server, { cors: { origin: ORIGIN === '*' ? true : ORIGIN } });
 
-// In-memory state
-const waitingQueue = [];
-const peers = new Map();
-const profiles = new Map();
+// In-memory (single instance). For scaling, add Redis adapter.
+const waitingQueue = []; // { socketId, nickname }
+const peers = new Map(); // sid -> partnerSid
+const nicknames = new Map(); // sid -> nickname
 
-// Simple rate limit per socket
+// Simple token bucket per socket
 const RATE_LIMIT = { tokens: 10, refillMs: 3000 };
 const buckets = new Map();
 const getBucket = (id) => {
@@ -53,28 +53,22 @@ const getBucket = (id) => {
   }
   return b;
 };
-function allow(id) { const b = getBucket(id); if (b.tokens > 0) { b.tokens--; return true; } return false; }
-function safeEmit(to, event, payload) { try { io.to(to).emit(event, payload); } catch (_) {} }
+const allow = (id) => { const b = getBucket(id); if (b.tokens>0){ b.tokens--; return true;} return false; };
+const safeEmit = (to, event, payload) => { try { io.to(to).emit(event, payload); } catch(_){} };
 
-function pairIfPossible() {
+function pairIfPossible(){
   while (waitingQueue.length >= 2) {
     const a = waitingQueue.shift();
     const b = waitingQueue.shift();
     if (!io.sockets.sockets.get(a.socketId)) continue;
     if (!io.sockets.sockets.get(b.socketId)) { waitingQueue.unshift(a); continue; }
-
     peers.set(a.socketId, b.socketId);
     peers.set(b.socketId, a.socketId);
-
     const roomId = `room_${nanoid(8)}`;
     io.sockets.sockets.get(a.socketId).join(roomId);
     io.sockets.sockets.get(b.socketId).join(roomId);
-
-    const aProfile = profiles.get(a.socketId) || {};
-    const bProfile = profiles.get(b.socketId) || {};
-
-    safeEmit(a.socketId, 'matched', { roomId, partner: bProfile });
-    safeEmit(b.socketId, 'matched', { roomId, partner: aProfile });
+    safeEmit(a.socketId, 'matched', { roomId, partner: { nickname: nicknames.get(b.socketId) || '상대' } });
+    safeEmit(b.socketId, 'matched', { roomId, partner: { nickname: nicknames.get(a.socketId) || '상대' } });
   }
 }
 
@@ -82,13 +76,10 @@ io.on('connection', (socket) => {
   io.emit('online_count', io.engine.clientsCount);
   getBucket(socket.id);
 
-  socket.on('join_queue', ({ profile }) => {
-    profiles.set(socket.id, {
-      nickname: (profile?.nickname || 'Guest').slice(0, 20),
-      about: (profile?.about || '').slice(0, 80)
-    });
-    if (!waitingQueue.find(q => q.socketId === socket.id) && !peers.get(socket.id)) {
-      waitingQueue.push({ socketId: socket.id, profile: profiles.get(socket.id) });
+  socket.on('start', ({ nickname }) => {
+    nicknames.set(socket.id, String(nickname||'Guest').slice(0,20));
+    if (!waitingQueue.find(q=>q.socketId===socket.id) && !peers.get(socket.id)) {
+      waitingQueue.push({ socketId: socket.id, nickname: nicknames.get(socket.id) });
       safeEmit(socket.id, 'system', { text: '상대를 찾는 중…' });
       pairIfPossible();
     }
@@ -100,62 +91,56 @@ io.on('connection', (socket) => {
       peers.delete(socket.id);
       peers.delete(partnerId);
       safeEmit(partnerId, 'partner_left', { reason: '상대가 Next를 눌렀습니다.' });
-      if (io.sockets.sockets.get(partnerId)) waitingQueue.push({ socketId: partnerId, profile: profiles.get(partnerId) });
+      if (io.sockets.sockets.get(partnerId)) waitingQueue.push({ socketId: partnerId, nickname: nicknames.get(partnerId) });
     }
-    if (!waitingQueue.find(q => q.socketId === socket.id)) {
-      waitingQueue.push({ socketId: socket.id, profile: profiles.get(socket.id) });
+    if (!waitingQueue.find(q=>q.socketId===socket.id)) {
+      waitingQueue.push({ socketId: socket.id, nickname: nicknames.get(socket.id) });
       safeEmit(socket.id, 'system', { text: '새로운 상대를 찾는 중…' });
       pairIfPossible();
     }
   });
 
-  socket.on('typing', (isTyping) => {
+  socket.on('typing', (flag) => {
     const partnerId = peers.get(socket.id);
-    if (partnerId) safeEmit(partnerId, 'typing', !!isTyping);
+    if (partnerId) safeEmit(partnerId, 'typing', !!flag);
   });
 
-  // Soft safety mask (extensible)
-  const maskBadWords = (text) => {
+  // Soft mask
+  const mask = (t) => {
     const bad = [/fuck/ig, /shit/ig];
-    let t = text;
-    bad.forEach(rx => t = t.replace(rx, (m)=>'*'.repeat(m.length)));
-    return t;
+    let x = t; bad.forEach(rx=>x=x.replace(rx, (m)=>'*'.repeat(m.length))); return x;
   };
 
   socket.on('message', (msg) => {
     if (!allow(socket.id)) return;
-    let text = String(msg?.text || '').trim();
+    let text = String(msg?.text||'').trim();
     if (!text) return;
     if (text.length > 1000) return;
-    text = maskBadWords(text);
-
+    text = mask(text);
     const partnerId = peers.get(socket.id);
-    const message = { id: nanoid(10), text, ts: Date.now(), from: socket.id };
-    // Echo back as ack
-    safeEmit(socket.id, 'message_echo', message);
-    if (partnerId) safeEmit(partnerId, 'message', message);
+    const payload = { id: nanoid(10), text, ts: Date.now(), from: socket.id };
+    safeEmit(socket.id, 'message_echo', payload); // ack
+    if (partnerId) safeEmit(partnerId, 'message', payload);
   });
 
-  socket.on('message_read', (messageId) => {
+  socket.on('message_read', (id) => {
     const partnerId = peers.get(socket.id);
-    if (partnerId) safeEmit(partnerId, 'message_read', { id: messageId });
+    if (partnerId) safeEmit(partnerId, 'message_read', { id });
   });
 
-  socket.on('client_ping', (ts) => {
-    safeEmit(socket.id, 'client_pong', ts);
-  });
+  socket.on('client_ping', (ts) => safeEmit(socket.id, 'client_pong', ts));
 
   socket.on('disconnect', () => {
-    const idx = waitingQueue.findIndex(q => q.socketId === socket.id);
-    if (idx >= 0) waitingQueue.splice(idx, 1);
+    const idx = waitingQueue.findIndex(q=>q.socketId===socket.id);
+    if (idx>=0) waitingQueue.splice(idx,1);
     const partnerId = peers.get(socket.id);
     if (partnerId) {
       peers.delete(socket.id);
       peers.delete(partnerId);
       safeEmit(partnerId, 'partner_left', { reason: '상대가 나갔습니다.' });
-      if (io.sockets.sockets.get(partnerId)) waitingQueue.push({ socketId: partnerId, profile: profiles.get(partnerId) });
+      if (io.sockets.sockets.get(partnerId)) waitingQueue.push({ socketId: partnerId, nickname: nicknames.get(partnerId) });
     }
-    profiles.delete(socket.id);
+    nicknames.delete(socket.id);
     buckets.delete(socket.id);
     io.emit('online_count', io.engine.clientsCount);
   });
