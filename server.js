@@ -1,87 +1,120 @@
 const express = require('express');
-const app = express();
-const http = require('http').createServer(app);
-const io = require('socket.io')(http);
+const http = require('http');
+const { Server } = require('socket.io');
 const path = require('path');
+
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server);
 
 app.use(express.static(path.join(__dirname, 'public')));
 
-let queue = [];
-let rooms = {};
-let users = {};
+let queue = [];         // 대기열
+const partners = {};    // socket.id -> partnerId
+const users = {};       // socket.id -> profile
 
-io.on('connection', (socket) => {
-  socket.on('join', ({ nickname, gender }) => {
-    users[socket.id] = { nickname, gender };
-    if (queue.length > 0) {
+function broadcastOnline(){
+  const n = io.engine.clientsCount || 0;
+  io.emit('online', n);
+}
+
+function pair(a, b){
+  partners[a] = b;
+  partners[b] = a;
+  io.to(a).emit('match', users[b]);
+  io.to(b).emit('match', users[a]);
+  io.to(a).emit('status', {kind:'ok', text:'연결됨'});
+  io.to(b).emit('status', {kind:'ok', text:'연결됨'});
+}
+
+io.on('connection', (socket)=>{
+  broadcastOnline();
+
+  socket.on('join', (profile)=>{
+    users[socket.id] = profile;
+    // 대기열에 누가 있으면 매칭
+    if(queue.length){
       const partner = queue.shift();
-      const room = socket.id + '#' + partner;
-      rooms[socket.id] = partner;
-      rooms[partner] = socket.id;
-      socket.join(room);
-      io.to(partner).socketsJoin(room);
-      io.to(room).emit('system message', '새로운 상대와 연결되었습니다.');
-      io.to(room).emit('status', '🟢 연결됨');
-    } else {
+      if(!io.sockets.sockets.get(partner)){ // 유실 방지
+        socket.emit('system','상대를 찾는 중…');
+        queue = queue.filter(id => id !== partner);
+        queue.push(socket.id);
+        return;
+      }
+      pair(socket.id, partner);
+    }else{
       queue.push(socket.id);
-      socket.emit('system message', '상대를 기다리는 중...');
-      socket.emit('status', '🟡 대기 중');
+      socket.emit('status', {kind:'wait', text:'대기 중'});
+      socket.emit('system', '상대를 기다리는 중…');
     }
   });
 
-  socket.on('chat message', (msg) => {
-    const partner = rooms[socket.id];
-    if (partner) {
-      io.to(partner).emit('chat message', { user: users[socket.id].nickname, msg });
+  socket.on('chat message', (text)=>{
+    const p = partners[socket.id];
+    if(!p) return;
+    io.to(p).emit('chat message', { user: users[socket.id], text });
+  });
+
+  socket.on('typing', ()=>{
+    const p = partners[socket.id];
+    if(!p) return;
+    io.to(p).emit('typing', users[socket.id]);
+  });
+  socket.on('stopTyping', ()=>{
+    const p = partners[socket.id];
+    if(!p) return;
+    io.to(p).emit('stopTyping');
+  });
+
+  socket.on('next', ()=>{
+    const p = partners[socket.id];
+    if(p){
+      io.to(p).emit('partner-left');
+      delete partners[p];
+      queue.push(p); // 상대는 대기열로 복귀
+    }
+    delete partners[socket.id];
+    // 본인은 즉시 다시 매칭 시도
+    if(queue.length){
+      const target = queue.shift();
+      if(target === socket.id || !io.sockets.sockets.get(target)){
+        queue.push(socket.id);
+      }else{
+        pair(socket.id, target);
+      }
+    }else{
+      queue.push(socket.id);
+      socket.emit('status', {kind:'wait', text:'대기 중'});
+      socket.emit('system', '상대를 기다리는 중…');
     }
   });
 
-  socket.on('typing', () => {
-    const partner = rooms[socket.id];
-    if (partner) {
-      io.to(partner).emit('typing', users[socket.id].nickname);
+  socket.on('leave', ()=>{
+    const p = partners[socket.id];
+    if(p){
+      io.to(p).emit('partner-left');
+      delete partners[p];
     }
-  });
-
-  socket.on('stopTyping', () => {
-    const partner = rooms[socket.id];
-    if (partner) {
-      io.to(partner).emit('stopTyping');
-    }
-  });
-
-  socket.on('new', () => {
-    const partner = rooms[socket.id];
-    if (partner) {
-      io.to(partner).emit('system message', '상대방이 나갔습니다.');
-      delete rooms[partner];
-    }
-    delete rooms[socket.id];
-    queue.push(socket.id);
-    socket.emit('system message', '새 상대를 기다리는 중...');
-    socket.emit('status', '🟡 대기 중');
-  });
-
-  socket.on('leave', () => {
-    const partner = rooms[socket.id];
-    if (partner) {
-      io.to(partner).emit('system message', '상대방이 홈으로 돌아갔습니다.');
-      delete rooms[partner];
-    }
-    delete rooms[socket.id];
-  });
-
-  socket.on('disconnect', () => {
-    const partner = rooms[socket.id];
-    if (partner) {
-      io.to(partner).emit('system message', '상대방이 연결을 종료했습니다.');
-      delete rooms[partner];
-    }
+    delete partners[socket.id];
     queue = queue.filter(id => id !== socket.id);
-    delete rooms[socket.id];
     delete users[socket.id];
+    socket.emit('status', {kind:'wait', text:'대기 중'});
+  });
+
+  socket.on('disconnect', ()=>{
+    const p = partners[socket.id];
+    if(p){
+      io.to(p).emit('partner-left');
+      delete partners[p];
+    }
+    delete partners[socket.id];
+    queue = queue.filter(id => id !== socket.id);
+    delete users[socket.id];
+    broadcastOnline();
   });
 });
 
 const PORT = process.env.PORT || 3000;
-http.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+server.listen(PORT, ()=>{
+  console.log('Random chat server on', PORT);
+});

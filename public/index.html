@@ -1,49 +1,80 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>랜덤 채팅</title>
-  <link rel="stylesheet" href="styles.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>랜덤채팅 | 빠르게 연결되는 익명 채팅</title>
+  <meta name="description" content="가입 없이 바로 시작하는 랜덤 채팅. 익명 아바타, 다음 버튼, 다크모드 지원." />
+  <link rel="icon" href="/assets/favicon.svg">
+  <link rel="stylesheet" href="/styles.css" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
   <!-- 홈 화면 -->
-  <div id="home-screen" class="screen active">
-    <h1>랜덤 채팅 🎉</h1>
-    <div class="form-group">
-      <label>닉네임</label>
-      <input type="text" id="nickname" placeholder="닉네임을 입력하세요">
+  <section id="home" class="screen active">
+    <div class="home-wrap card">
+      <div class="brand">
+        <button id="brandHome" class="brand-btn" aria-label="홈으로">
+          <img src="/assets/bubble.svg" alt="말풍선 로고" />
+        </button>
+        <h1>랜덤채팅</h1>
+      </div>
+
+      <p class="sub">회원가입 없이 지금 바로 낯선 사람과 대화하세요.</p>
+
+      <div class="form-row">
+        <label for="nickname">닉네임</label>
+        <input id="nickname" type="text" placeholder="예: 파란고래" maxlength="20" autocomplete="off"/>
+      </div>
+
+      <div class="form-row">
+        <span>성별</span>
+        <div class="seg">
+          <label><input type="radio" name="gender" value="male" checked><span>남성</span></label>
+          <label><input type="radio" name="gender" value="female"><span>여성</span></label>
+          <label><input type="radio" name="gender" value="none"><span>선택 안 함</span></label>
+        </div>
+      </div>
+
+      <button id="startBtn" class="primary">대화 시작하기</button>
+
+      <div class="tips">
+        <span>💡 팁</span> 엔터로 전송, Shift+Enter로 줄바꿈, 💬 로고를 누르면 언제든 홈으로 이동합니다.
+      </div>
     </div>
-    <div class="form-group">
-      <label>성별</label>
-      <select id="gender">
-        <option value="male">남성</option>
-        <option value="female">여성</option>
-        <option value="none">선택 안 함</option>
-      </select>
-    </div>
-    <button id="startChat">대화 시작</button>
-  </div>
+  </section>
 
   <!-- 채팅 화면 -->
-  <div id="chat-screen" class="screen">
-    <header>
-      <div id="homeBtn" class="icon">💬</div>
-      <div id="status">🟡 대기 중</div>
-      <div id="themeToggle">🌙</div>
+  <section id="chat" class="screen">
+    <header class="topbar">
+      <button id="homeBtn" class="icon-btn" title="홈으로">
+        <img src="/assets/bubble.svg" alt="홈으로" />
+      </button>
+      <div class="status">
+        <span id="statusDot" class="dot wait"></span>
+        <span id="statusText">대기 중</span>
+        <span class="sep">•</span>
+        <span id="online">접속자 0명</span>
+      </div>
+      <button id="themeToggle" class="icon-btn" title="테마 전환">🌙</button>
     </header>
 
-    <main id="chat-box"></main>
+    <main id="chatBox" aria-live="polite"></main>
 
-    <footer>
-      <textarea id="messageInput" placeholder="메시지를 입력하세요 (Enter 전송, Shift+Enter 줄바꿈)"></textarea>
-      <button id="sendBtn">전송</button>
-      <button id="newBtn">새 상대</button>
-      <button id="clearBtn">지우기</button>
+    <footer class="bottombar">
+      <div class="input-wrap">
+        <textarea id="msg" placeholder="메시지를 입력하세요 (Enter 전송, Shift+Enter 줄바꿈)" rows="1"></textarea>
+      </div>
+      <div class="btns">
+        <button id="send" class="primary">전송</button>
+        <button id="next" class="ghost">다음</button>
+        <button id="clear" class="ghost">지우기</button>
+      </div>
     </footer>
-  </div>
+  </section>
 
   <script src="/socket.io/socket.io.js"></script>
-  <script src="app.js"></script>
+  <script src="/app.js"></script>
 </body>
 </html>
