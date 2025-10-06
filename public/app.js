@@ -43,11 +43,19 @@
     }
   }
   function addSessionEnd(){
+    const last = messages.lastElementChild;
+    if (last && last.classList && last.classList.contains('session-end')) return; // avoid duplicate
     const line = document.createElement('div');
     line.className = 'session-end';
     line.textContent = '대화가 종료되었습니다';
     messages.appendChild(line);
     autoScroll();
+  }
+  function clearPending(){
+    // clear all pending timers and queue to avoid leaks between sessions
+    pendingTimers.forEach((t)=>clearTimeout(t));
+    pendingTimers.clear();
+    pendingQueue = [];
   }
   function systemMessage(text){
     const el = document.createElement('div'); el.className='msg system'; el.textContent = text;
@@ -72,6 +80,8 @@
     const el = document.querySelector(`.msg[data-id="${tempId}"]`);
     if (!el) return;
     el.dataset.id = realMsg.id;
+    // reflect server-processed text (masking, etc.)
+    const content = el.querySelector('.content'); if (content) content.textContent = realMsg.text;
     el.classList.remove('pending','dotting','failed');
     const s = el.querySelector('[data-role="status"]'); if (s) s.textContent='보냄';
   }
@@ -109,6 +119,7 @@
   });
 
   // Onboarding start
+  let lastSendAt = 0;
   function start(){
     const nick = (obNick.value.trim() || 'Guest').slice(0,20);
     localStorage.setItem('nickname', nick);
@@ -116,6 +127,8 @@
     requestNotify();
     statusText.textContent = '매칭 중';
     socket.emit('start', { nickname: nick });
+    // focus input for immediate typing
+    setTimeout(()=>{ try{ text.focus(); }catch{} }, 50);
   }
   obStart.addEventListener('click', start);
   obNick.addEventListener('keydown', (e)=>{ if (e.key==='Enter') start(); });
@@ -124,6 +137,7 @@
   nextBtn.addEventListener('click', ()=>{
     socket.emit('next');
     statusText.textContent = '매칭 중';
+    clearPending();
     addSessionEnd();
   });
 
@@ -134,6 +148,9 @@
 
   // Send
   function sendMessage(){
+    const now = performance.now();
+    if (now - lastSendAt < 200) return; // simple cooldown to prevent double-click spam
+    lastSendAt = now;
     const value = text.value.trim();
     if (!value) return;
     const tempId = 'tmp_' + Math.random().toString(36).slice(2,10);
@@ -158,6 +175,7 @@
   socket.on('partner_left', ({ reason }) => {
     statusText.textContent = '매칭 중';
     systemMessage(reason || '상대가 나갔습니다.');
+    clearPending();
     addSessionEnd();
   });
 
