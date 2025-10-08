@@ -1,7 +1,7 @@
 
 services:
   - type: web
-    name: random-chat-kor
+    name: random-chat-kor-plus
     env: node
     plan: free
     buildCommand: "npm install"
@@ -10,13 +10,7 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-    headers:
-      - path: /*
-        name: Strict-Transport-Security
-        value: max-age=63072000; includeSubDomains; preload
-      - path: /*
-        name: X-Frame-Options
-        value: DENY
-      - path: /*
-        name: X-Content-Type-Options
-        value: nosniff
+      - key: HC_SITEKEY
+        sync: false   # Render 대시보드에서 설정하세요
+      - key: HC_SECRET
+        sync: false   # Render 대시보드에서 설정하세요

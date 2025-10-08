@@ -4,35 +4,61 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>랜덤채팅 - 익명 1:1</title>
-    <meta name="description" content="DB 없이 가벼운 한국어 랜덤 1:1 채팅" />
+    <title>랜덤채팅 Plus - 익명 1:1</title>
+    <meta name="description" content="DB 없이 가벼운 한국어 랜덤 1:1 채팅 - 캡차 & 필수기능" />
     <link rel="stylesheet" href="/style.css" />
     <link rel="preconnect" href="https://cdn.socket.io" />
+    <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
   </head>
   <body>
     <header class="topbar">
-      <h1>랜덤채팅</h1>
+      <div class="brand">
+        <div class="logo">💬</div>
+        <h1>랜덤채팅 <span class="badge">Plus</span></h1>
+      </div>
       <nav class="nav">
-        <button id="btnFind" class="primary">매칭 시작</button>
+        <button id="btnFind" class="primary" disabled>매칭 시작</button>
+        <button id="btnCancel" class="ghost" disabled>취소</button>
         <button id="btnNext" class="ghost" disabled>다음</button>
         <button id="btnEnd" class="ghost" disabled>종료</button>
+        <label class="switch" title="자동 재매칭">
+          <input id="auto" type="checkbox"/><span>자동 재매칭</span>
+        </label>
+        <button id="btnTheme" class="ghost">🌗 테마</button>
       </nav>
     </header>
+
+    <section class="statusbar">
+      <div>대기열: <strong id="qsize">0</strong>명</div>
+      <div id="net">연결 상태 확인 중…</div>
+    </section>
 
     <main class="layout">
       <section class="chat">
         <ul id="log" class="log" aria-live="polite" aria-relevant="additions"></ul>
         <div id="typing" class="typing hidden">상대가 입력 중…</div>
         <form id="form" class="composer">
-          <textarea id="input" maxlength="5000" placeholder="메시지를 입력하세요 (최대 5000자)"></textarea>
+          <textarea id="input" maxlength="5000" placeholder="메시지를 입력하세요 (Enter 전송, Shift+Enter 줄바꿈)"></textarea>
           <div class="row">
-            <button id="btnSend" type="submit" class="primary" disabled>전송</button>
-            <span id="count" class="muted">0 / 5000</span>
+            <div class="left">
+              <span id="count" class="muted">0 / 5000</span>
+              <span id="read" class="muted"></span>
+            </div>
+            <div class="right">
+              <button id="btnSend" type="submit" class="primary" disabled>전송</button>
+            </div>
           </div>
         </form>
       </section>
 
       <aside class="side">
+        <div class="card">
+          <h2>보안 확인</h2>
+          <p class="muted">매칭 시작 전에 아래 캡차를 완료해주세요.</p>
+          <div id="captchaBox" class="captcha"></div>
+          <div class="row"><span id="capState" class="muted">캡차 로딩 중…</span></div>
+        </div>
+
         <div class="card">
           <h2>설정</h2>
           <label class="field">
@@ -44,34 +70,20 @@
           </div>
         </div>
 
-        <div class="card">
-          <h2>안내</h2>
-          <ul class="info">
-            <li>이 서비스는 <strong>DB 없이</strong> 동작합니다. 브라우저를 닫으면 대화가 사라져요.</li>
-            <li>부적절한 언어·광고·도배는 제한됩니다.</li>
-            <li>문제가 있는 상대는 <em>신고</em> 또는 <em>차단</em> 하세요.</li>
-          </ul>
-          <div class="row">
-            <button id="btnReport" class="warn" disabled>신고</button>
-            <button id="btnBlock" class="danger" disabled>차단</button>
-          </div>
-        </div>
-
         <div class="card small">
-          <h2>약관 & 개인정보</h2>
-          <p class="muted">
-            이 사이트는 쿠키나 DB를 사용하지 않으며, 서버 메모리에서만 일시적으로 매칭 정보를 처리합니다.
-            민감한 정보를 공유하지 마세요.
-          </p>
+          <h2>도움말</h2>
+          <p class="muted">Enter 전송 · Shift+Enter 줄바꿈 · 매칭 취소 가능</p>
         </div>
       </aside>
     </main>
 
-    <footer class="footer">
-      <p>© 2025 랜덤채팅</p>
-    </footer>
+    <footer class="footer"><p>© 2025 랜덤채팅 Plus</p></footer>
 
-    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" integrity="" crossorigin="anonymous"></script>
+    <audio id="snd" preload="auto">
+      <source src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABYAAAABAAgAZGF0YQAAAAA=" type="audio/wav"/>
+    </audio>
+
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" crossorigin="anonymous"></script>
     <script src="/client.js"></script>
   </body>
 </html>
