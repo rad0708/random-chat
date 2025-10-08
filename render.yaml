@@ -1,10 +1,11 @@
+
 services:
   - type: web
     name: shufflechat
     env: node
     plan: free
     buildCommand: npm install && npm run build
-    startCommand: npm --workspace server run start
+    startCommand: npm start
     envVars:
       - key: NODE_ENV
         value: production

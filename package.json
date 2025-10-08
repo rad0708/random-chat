@@ -8,8 +8,6 @@
   "scripts": {
     "dev": "npm --workspace server run dev & npm --workspace client run dev",
     "build": "npm --workspace server run build && npm --workspace client run build",
-    "start": "npm --workspace server run start",
-    "lint": "echo \"(optional)\"",
-    "test": "echo \"(optional)\""
+    "start": "node server/dist/index.js"
   }
 }
