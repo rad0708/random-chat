@@ -2,44 +2,44 @@
   "name": "shufflechat",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": "20.x"
+  },
   "scripts": {
     "dev": "tsx server/index.ts",
     "build": "next build && tsc -p tsconfig.server.json",
     "start": "node dist/server/index.js",
-    "lint": "next lint"
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@tailwindcss/forms": "^0.5.7",
+    "autoprefixer": "^10.4.20",
     "bad-words": "^3.0.4",
-    "clsx": "^1.2.1",
+    "clsx": "^2.1.1",
     "cors": "^2.8.5",
-    "csrf-lite": "^1.0.3",
-    "express": "^4.18.2",
-    "express-rate-limit": "^6.11.2",
-    "framer-motion": "^10.16.4",
-    "helmet": "^7.0.0",
-    "next": "14.1.0",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.4.0",
+    "helmet": "^7.1.0",
+    "next": "14.2.3",
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "socket.io": "^4.7.5",
     "socket.io-client": "^4.7.5",
-    "zod": "^3.22.4"
+    "tailwindcss": "^3.4.10",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@types/bad-words": "^3.0.1",
+    "@tailwindcss/forms": "^0.5.7",
+    "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/node": "^20.11.19",
     "@types/react": "^18.2.46",
     "@types/react-dom": "^18.2.18",
-    "@types/socket.io": "^3.0.2",
-    "@types/socket.io-client": "^3.0.2",
-    "autoprefixer": "^10.4.16",
-    "eslint": "^8.56.0",
-    "eslint-config-next": "^14.1.0",
-    "postcss": "^8.4.31",
-    "tailwindcss": "^3.3.5",
-    "ts-node": "^10.9.1",
-    "tsx": "^4.7.0",
-    "typescript": "^5.3.3"
+    "eslint": "^8.57.0",
+    "eslint-config-next": "^14.2.3",
+    "postcss": "^8.4.47",
+    "prettier": "^3.3.3",
+    "tsx": "^4.19.2",
+    "typescript": "^5.5.4"
   }
 }

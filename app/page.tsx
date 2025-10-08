@@ -3,11 +3,12 @@
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import { AdBanner } from '@/components/AdBanner';
 
 const tips = [
   '새로운 사람과 부담 없이 대화해 보세요.',
   '닉네임은 매 접속마다 새롭게 생성됩니다.',
-  '건전한 대화를 위해 예의를 지켜 주세요.',
+  '간단히 “랜덤 채팅 시작”만 누르세요.',
 ];
 
 export default function HomePage() {
@@ -15,9 +16,7 @@ export default function HomePage() {
   const [tipIndex, setTipIndex] = useState(0);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setTipIndex((prev) => (prev + 1) % tips.length);
-    }, 4000);
+    const interval = setInterval(() => setTipIndex((p) => (p + 1) % tips.length), 4000);
     return () => clearInterval(interval);
   }, []);
 
@@ -38,7 +37,7 @@ export default function HomePage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2, duration: 0.6 }}
         >
-          셔플챗은 익명으로 즐기는 1:1 랜덤 채팅 서비스입니다. 지금 바로 랜덤 채팅을 시작해보세요.
+          익명 1:1 랜덤 채팅을 지금 바로 시작해보세요.
         </motion.p>
         <motion.button
           type="button"
@@ -59,6 +58,9 @@ export default function HomePage() {
         >
           {tips[tipIndex]}
         </motion.p>
+        <div className="mt-10">
+          <AdBanner />
+        </div>
       </div>
     </section>
   );

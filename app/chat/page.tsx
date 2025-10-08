@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { io, type Socket } from 'socket.io-client';
 import { ChatBubble } from '@/components/ChatBubble';
 import { TypingIndicator } from '@/components/TypingIndicator';
-import { motion, AnimatePresence } from 'framer-motion';
 
 interface ChatMessage {
   id: string;
@@ -14,21 +13,9 @@ interface ChatMessage {
   content: string;
   createdAt: string;
 }
-
-interface SessionPayload {
-  sessionId: string;
-  nickname: string;
-}
-
-interface MatchPayload {
-  roomId: string;
-  partnerNickname: string;
-}
-
-interface TypingPayload {
-  isTyping: boolean;
-  nickname: string;
-}
+interface SessionPayload { sessionId: string; nickname: string; }
+interface MatchPayload { roomId: string; partnerNickname: string; }
+interface TypingPayload { isTyping: boolean; nickname: string; }
 
 const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL ?? undefined;
 
@@ -40,7 +27,6 @@ export default function ChatPage() {
   const [input, setInput] = useState('');
   const [statusMessage, setStatusMessage] = useState('상대를 찾는 중입니다...');
   const [isPartnerTyping, setIsPartnerTyping] = useState(false);
-  const [notification, setNotification] = useState('');
 
   const socketRef = useRef<Socket | null>(null);
   const typingTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -48,7 +34,7 @@ export default function ChatPage() {
   const isMatched = useMemo(() => Boolean(roomId && partnerNickname), [roomId, partnerNickname]);
 
   useEffect(() => {
-    const socket = io(socketUrl, { withCredentials: true });
+    const socket = io(socketUrl, { transports: ['websocket'] });
     socketRef.current = socket;
 
     socket.on('connect', () => {
@@ -65,7 +51,6 @@ export default function ChatPage() {
       setPartnerNickname(payload.partnerNickname);
       setStatusMessage('연결되었습니다! 즐거운 대화 나눠보세요.');
       setMessages([]);
-      setNotification('새로운 상대와 연결되었습니다.');
     });
 
     socket.on('message:new', (message: ChatMessage) => {
@@ -81,7 +66,6 @@ export default function ChatPage() {
       setPartnerNickname('');
       setRoomId(null);
       setMessages([]);
-      setNotification('상대방이 연결을 종료했습니다.');
     });
 
     socket.on('queue:waiting', () => {
@@ -98,12 +82,6 @@ export default function ChatPage() {
     };
   }, []);
 
-  useEffect(() => {
-    if (!notification) return;
-    const timeout = setTimeout(() => setNotification(''), 4000);
-    return () => clearTimeout(timeout);
-  }, [notification]);
-
   const handleSendMessage = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!socketRef.current || !roomId || !input.trim()) return;
@@ -116,7 +94,6 @@ export default function ChatPage() {
   const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const value = event.target.value;
     setInput(value);
-
     if (!socketRef.current || !roomId) return;
     socketRef.current.emit('typing', { isTyping: true });
     if (typingTimeout.current) clearTimeout(typingTimeout.current);
@@ -141,9 +118,7 @@ export default function ChatPage() {
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className="text-2xl font-semibold text-dark">랜덤 채팅</h1>
-            <p className="text-sm text-gray-600" role="status" aria-live="polite">
-              {statusMessage}
-            </p>
+            <p className="text-sm text-gray-600" role="status" aria-live="polite">{statusMessage}</p>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-sm text-gray-500">
             {session && <span>내 닉네임: {session.nickname}</span>}
@@ -169,9 +144,7 @@ export default function ChatPage() {
           </div>
           {isPartnerTyping && partnerNickname && <TypingIndicator nickname={partnerNickname} />}
           <form className="flex flex-col gap-3 sm:flex-row" onSubmit={handleSendMessage}>
-            <label className="sr-only" htmlFor="message">
-              메시지 입력
-            </label>
+            <label className="sr-only" htmlFor="message">메시지 입력</label>
             <input
               id="message"
               type="text"
@@ -200,19 +173,6 @@ export default function ChatPage() {
           </div>
         </div>
       </div>
-      <AnimatePresence>
-        {notification && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-6 left-1/2 z-40 w-full max-w-sm -translate-x-1/2 rounded-full bg-dark px-4 py-3 text-center text-sm font-medium text-white shadow-lg"
-            role="status"
-          >
-            {notification}
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }

@@ -6,7 +6,6 @@ import rateLimit from 'express-rate-limit';
 import { createServer } from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import Filter from 'bad-words';
-import { randomUUID } from 'crypto';
 import { Matchmaker, type ClientInfo } from './matchmaker';
 import { generateNickname } from '../lib/nickname';
 import { messageSchema, typingSchema } from '../lib/validators';
@@ -25,25 +24,18 @@ async function bootstrap() {
 
   expressApp.set('trust proxy', 1);
   expressApp.use(helmet());
-  expressApp.use(
-    cors({
-      origin: corsOrigin,
-      credentials: true,
-    })
-  );
-  expressApp.use(
-    rateLimit({
-      windowMs: 60 * 1000,
-      max: rateLimitMax,
-      standardHeaders: true,
-      legacyHeaders: false,
-    })
-  );
+  expressApp.use(cors({ origin: corsOrigin, credentials: true }));
+
+  expressApp.use(rateLimit({
+    windowMs: 60 * 1000,
+    max: rateLimitMax,
+    standardHeaders: true,
+    legacyHeaders: false,
+    skip: (req) => req.path?.startsWith('/socket.io') // 소켓 핸드셰이크 제외
+  }));
 
   const server = createServer(expressApp);
-  const io = new SocketIOServer(server, {
-    cors: { origin: corsOrigin, credentials: true },
-  });
+  const io = new SocketIOServer(server, { cors: { origin: corsOrigin, credentials: true } });
 
   const matchmaker = new Matchmaker();
   const filter = new Filter();
@@ -51,8 +43,7 @@ async function bootstrap() {
   io.use(async (socket, nextMiddleware) => {
     try {
       const nickname = generateNickname();
-      const sessionId = randomUUID();
-      socket.data.sessionId = sessionId;
+      socket.data.sessionId = `sess_${Math.random().toString(36).slice(2)}`;
       socket.data.nickname = nickname;
       nextMiddleware();
     } catch (error) {
@@ -76,7 +67,7 @@ async function bootstrap() {
       }
 
       try {
-        const roomId = matchmaker.createRoomId();
+        const roomId = `room_${Math.random().toString(36).slice(2)}`;
         matchmaker.registerRoom(roomId, [partner, client]);
 
         const partnerSocket = io.sockets.sockets.get(partner.socketId);
@@ -110,16 +101,14 @@ async function bootstrap() {
       if (!room || room.id !== roomId) return;
 
       const cleanContent = filter.clean(content);
-      const message = {
-        id: randomUUID(),
+      io.to(roomId).emit('message:new', {
+        id: `msg_${Date.now()}_${Math.random().toString(36).slice(2)}`,
         roomId,
-        senderId: socket.data.sessionId as string,
-        nickname: socket.data.nickname as string,
+        senderId: socket.data.sessionId,
+        nickname: socket.data.nickname,
         content: cleanContent,
         createdAt: new Date().toISOString(),
-      };
-
-      io.to(roomId).emit('message:new', message);
+      });
     });
 
     socket.on('typing', (payload) => {
@@ -155,6 +144,7 @@ async function bootstrap() {
     });
   });
 
+  // Next.js 핸들러
   expressApp.all('*', (req, res) => handle(req, res));
 
   const port = parseInt(process.env.PORT ?? '3000', 10);

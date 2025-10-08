@@ -5,8 +5,7 @@ const nextConfig = {
     typedRoutes: true,
   },
   eslint: {
-    dirs: ["app", "components", "lib", "server", "pages"],
+    dirs: ['app', 'components', 'lib', 'server'],
   },
 };
-
 module.exports = nextConfig;

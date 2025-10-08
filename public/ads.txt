@@ -1,3 +1,1 @@
-# 광고 시스템 인증 파일 (예시)
-# 실제 판매자 정보를 아래에 기입하세요. (예: Google AdSense)
-# google.com, pub-0000000000000000, DIRECT, f08c47fec0942fa0
+your-ad-network-id-here

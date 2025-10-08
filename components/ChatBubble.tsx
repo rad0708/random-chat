@@ -1,5 +1,4 @@
 'use client';
-
 import clsx from 'clsx';
 
 export interface ChatBubbleProps {
@@ -11,12 +10,7 @@ export interface ChatBubbleProps {
 
 export function ChatBubble({ isOwn, nickname, message, timestamp }: ChatBubbleProps) {
   return (
-    <div
-      className={clsx('flex w-full flex-col gap-1', {
-        'items-end text-right': isOwn,
-        'items-start text-left': !isOwn,
-      })}
-    >
+    <div className={clsx('flex w-full flex-col gap-1', { 'items-end text-right': isOwn, 'items-start text-left': !isOwn })}>
       <span className="text-xs text-gray-500">
         {nickname} · {new Date(timestamp).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
       </span>
