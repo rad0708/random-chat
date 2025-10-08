@@ -1,1 +1,0 @@
-/* AdminPage 컴포넌트 (신고 내역 확인 UI diff 코드 전체) */

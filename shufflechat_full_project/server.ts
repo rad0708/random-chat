@@ -1,1 +1,0 @@
-/* Express + Next.js + Socket.IO 서버 부트스트랩 코드 (diff에 나온 내용) */

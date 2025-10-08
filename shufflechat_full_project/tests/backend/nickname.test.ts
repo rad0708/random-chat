@@ -1,1 +1,0 @@
-/* generateNickname 유닛 테스트 */

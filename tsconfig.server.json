@@ -1,0 +1,4 @@
+{
+  "extends":"./tsconfig.json", "compilerOptions":{"outDir":"dist/server","module":"commonjs","target":"ES2019","noEmit":false,"jsx":"react-jsx","moduleResolution":"node","resolveJsonModule":true,"skipLibCheck":true,"incremental":false},
+  "include":["server/**/*.ts","lib/**/*.ts","types/**/*.d.ts"],"exclude":["node_modules","app","components","pages","dist"]
+}

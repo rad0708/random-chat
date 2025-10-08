@@ -1,1 +1,0 @@
-/* MessageBubble 렌더링 테스트 */

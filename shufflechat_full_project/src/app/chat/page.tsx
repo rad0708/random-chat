@@ -1,1 +1,0 @@
-/* ChatPage 컴포넌트 (Socket.IO 채팅, 신고 다이얼로그 등 diff 코드 전체) */
