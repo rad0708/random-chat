@@ -1,50 +1,90 @@
+
 <!doctype html>
 <html lang="ko">
-<head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>랜덤채팅 Google Style</title>
-  <link rel="stylesheet" href="/style.css"/>
-</head>
-<body class="light">
-  <header class="appbar">
-    <div class="logo">RandomChat</div>
-    <div class="actions">
-      <div class="profile" id="profileBtn">👤</div>
-      <div class="dropdown" id="dropdownMenu">
-        <ul>
-          <li>
-            <span>🌙 테마</span>
-            <select id="themeSelect">
-              <option value="system">기기 테마</option>
-              <option value="light">라이트</option>
-              <option value="dark">다크</option>
-            </select>
-          </li>
-          <li>
-            <span>🔔 알림 설정</span>
-            <select id="notifySelect">
-              <option value="default">기본</option>
-              <option value="off">끄기</option>
-            </select>
-          </li>
-          <li class="divider"></li>
-          <li><button id="logoutBtn">로그아웃</button></li>
-        </ul>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RandomChat — Modern</title>
+    <meta name="description" content="구글 스타일의 미니멀 한국어 랜덤 1:1 채팅" />
+    <link rel="stylesheet" href="/style.css" />
+    <link rel="preconnect" href="https://cdn.socket.io" />
+    <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
+  </head>
+  <body>
+    <header class="appbar">
+      <div class="brand">RandomChat</div>
+      <div class="tray">
+        <button id="btnBell" class="icon" title="알림">🔔</button>
+        <button id="btnTheme" class="icon" title="테마">🌞</button>
+        <button id="btnProfile" class="avatar" title="프로필">👤</button>
+
+        <div id="menu" class="menu hidden" role="menu" aria-label="프로필 메뉴">
+          <div class="menu-head">
+            <div class="avatar sm">👤</div>
+            <div class="meta">
+              <strong>게스트</strong>
+              <small id="state">대기 중</small>
+            </div>
+          </div>
+          <button class="item" id="mTheme">
+            <span>테마</span>
+            <span class="value" id="themeVal">기기</span>
+          </button>
+          <button class="item" id="mNotify">
+            <span>알림 설정</span>
+            <span class="value" id="notifyVal">기본</span>
+          </button>
+          <div class="divider"></div>
+          <button class="item" id="mLogout">로그아웃</button>
+        </div>
       </div>
+    </header>
+
+    <section class="topinfo">
+      <span id="queueInfo">지금 0명이 기다리는 중</span>
+      <span id="net">연결 확인 중…</span>
+    </section>
+
+    <main class="viewport">
+      <ul id="log" class="log" aria-live="polite" aria-relevant="additions"></ul>
+
+      <div id="empty" class="empty">
+        <h2>랜덤 1:1 채팅을 시작해 보세요</h2>
+        <p>매칭 전에 간단한 보안 인증을 진행합니다.</p>
+        <button id="btnStart" class="primary lg">매칭 시작</button>
+      </div>
+    </main>
+
+    <footer class="composer">
+      <button id="btnPlus" class="icon">＋</button>
+      <textarea id="input" maxlength="5000" placeholder="메시지를 입력하세요 (Enter 전송, Shift+Enter 줄바꿈)"></textarea>
+      <button id="btnSend" class="send">▶</button>
+    </footer>
+
+    <div id="fab" class="fab hidden">
+      <button id="btnNext" class="fab-btn" title="다음">➡️</button>
+      <button id="btnEnd" class="fab-btn danger" title="종료">❌</button>
     </div>
-  </header>
 
-  <main class="chat-area">
-    <ul id="log" class="log"></ul>
-  </main>
+    <div id="toast" class="toast"></div>
 
-  <footer class="inputbar">
-    <button id="plusBtn">＋</button>
-    <textarea id="input" placeholder="메시지를 입력하세요"></textarea>
-    <button id="sendBtn">▶</button>
-  </footer>
+    <!-- Captcha Modal -->
+    <dialog id="capdlg" class="modal">
+      <div class="card">
+        <h3>보안 확인</h3>
+        <p class="muted">아래 캡차를 완료하면 매칭을 시작할 수 있어요.</p>
+        <div id="captchaBox" class="captcha"></div>
+        <div class="row">
+          <button id="capClose">취소</button>
+        </div>
+      </div>
+    </dialog>
 
-  <script src="/client.js"></script>
-</body>
+    <audio id="snd" preload="auto">
+      <source src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABYAAAABAAgAZGF0YQAAAAA=" type="audio/wav"/>
+    </audio>
+
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" crossorigin="anonymous"></script>
+    <script src="/client.js"></script>
+  </body>
 </html>
