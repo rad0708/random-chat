@@ -1,0 +1,4 @@
+generator client { provider = "prisma-client-js" }
+datasource db { provider = "postgresql"; url = env("DATABASE_URL") }
+
+model Report { id String @id @default(cuid()) reporter String reason String description String? createdAt DateTime @default(now()) }
