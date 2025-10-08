@@ -1,7 +1,6 @@
-
 services:
   - type: web
-    name: random-chat-modern
+    name: random-chat-modern-layout
     env: node
     plan: free
     buildCommand: "npm install"
