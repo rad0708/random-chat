@@ -1,1 +1,9 @@
-# ShuffleChat\n\n로컬 실행: npm install && npm run dev\nRender 배포: render.yaml 참고
+# NextChat
+
+Next.js 기반 랜덤채팅
+
+## 실행
+```bash
+npm install
+npm run dev
+```

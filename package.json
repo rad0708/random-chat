@@ -1,13 +1,28 @@
 {
-  "name": "shufflechat-monorepo",
+  "name": "nextchat",
+  "version": "1.0.0",
   "private": true,
-  "workspaces": [
-    "server",
-    "client"
-  ],
   "scripts": {
-    "dev": "npm --workspace server run dev & npm --workspace client run dev",
-    "build": "npm --workspace server run build && npm --workspace client run build",
-    "start": "node server/dist/index.js"
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "next": "14.2.5",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "socket.io": "^4.7.5",
+    "socket.io-client": "^4.7.5",
+    "@prisma/client": "^5.18.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4",
+    "@types/react": "^18.3.3",
+    "@types/node": "^20.11.30",
+    "prisma": "^5.18.0",
+    "tailwindcss": "^3.4.10",
+    "postcss": "^8.4.45",
+    "autoprefixer": "^10.4.20"
   }
 }

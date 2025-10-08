@@ -1,0 +1,1 @@
+export default function Admin(){return <main className='p-8'><h1>관리자 페이지</h1><p>신고 내역 확인</p></main>}
