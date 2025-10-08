@@ -1,0 +1,1 @@
+export function MessageBubble(){return <div>메시지</div>}

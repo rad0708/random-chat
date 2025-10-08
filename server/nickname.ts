@@ -1,0 +1,1 @@
+export function generateNickname(){return '랜덤닉'}

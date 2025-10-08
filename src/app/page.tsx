@@ -1,1 +1,1 @@
-export default function Page(){return <main className='flex h-screen items-center justify-center'><a href='/chat' className='px-4 py-2 bg-black text-white rounded'>랜덤 채팅 시작</a></main>}
+export default function Home(){return <main>홈</main>}

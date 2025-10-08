@@ -1,0 +1,1 @@
+test('렌더링',()=>expect(true).toBe(true))

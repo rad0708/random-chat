@@ -1,0 +1,1 @@
+export function ReportDialog(){return <div>신고</div>}

@@ -1,1 +1,1 @@
-export default function Policy(){return <main className='p-8'><h1>정책 페이지</h1><p>이용 약관과 개인정보 처리방침</p></main>}
+export default function Policy(){return <main>정책</main>}

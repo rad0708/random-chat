@@ -1,0 +1,1 @@
+test('닉네임',()=>expect(true).toBe(true))

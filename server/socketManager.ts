@@ -1,0 +1,1 @@
+export function registerSocketHandlers(){console.log('소켓 등록')}
