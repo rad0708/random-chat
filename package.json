@@ -1,13 +1,15 @@
 {
-  "name": "random-chat",
-  "version": "1.0.0",
-  "description": "랜덤 채팅 홈페이지",
-  "main": "server.js",
+  "name": "shufflechat-monorepo",
+  "private": true,
+  "workspaces": [
+    "server",
+    "client"
+  ],
   "scripts": {
-    "start": "node server.js"
-  },
-  "dependencies": {
-    "express": "^4.18.2",
-    "socket.io": "^4.7.5"
+    "dev": "npm --workspace server run dev & npm --workspace client run dev",
+    "build": "npm --workspace server run build && npm --workspace client run build",
+    "start": "npm --workspace server run start",
+    "lint": "echo \"(optional)\"",
+    "test": "echo \"(optional)\""
   }
 }
