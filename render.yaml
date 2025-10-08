@@ -1,14 +1,16 @@
-
 services:
   - type: web
     name: shufflechat
     env: node
+    plan: free
     buildCommand: npm install && npm run build
-    startCommand: npm start
+    startCommand: npm --workspace server run start
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 10000
       - key: DATABASE_URL
+        sync: false
+      - key: BASIC_PASSWORD
         sync: false
