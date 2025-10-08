@@ -27,10 +27,6 @@
   },
   "include": [
     "next-env.d.ts",
-    "app",
-    "components",
-    "lib",
-    "server/**/*.ts",
     "**/*.ts",
     "**/*.tsx"
   ],

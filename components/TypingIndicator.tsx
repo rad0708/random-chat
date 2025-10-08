@@ -1,5 +1,5 @@
-'use client';
-export default function TypingIndicator({ nickname }: { nickname: string }) {
+'use client'
+export function TypingIndicator({ nickname }: { nickname: string }) {
   return (
     <div className="flex items-center gap-2 text-sm text-gray-500" role="status" aria-live="polite">
       <span className="relative inline-flex h-2 w-2">
@@ -8,5 +8,5 @@ export default function TypingIndicator({ nickname }: { nickname: string }) {
       </span>
       <span>{nickname} 님이 입력 중…</span>
     </div>
-  );
+  )
 }

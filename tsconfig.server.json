@@ -13,13 +13,14 @@
   },
   "include": [
     "server/**/*.ts",
-    "lib/**/*.ts"
+    "lib/**/*.ts",
+    "types/**/*.d.ts"
   ],
   "exclude": [
     "node_modules",
     "app",
     "components",
-    "public",
-    "dist"
+    "dist",
+    ".next"
   ]
 }

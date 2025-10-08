@@ -1,4 +1,5 @@
-import type { Config } from 'tailwindcss';
+import type { Config } from 'tailwindcss'
+
 const config: Config = {
   content: ['./app/**/*.{ts,tsx}', './components/**/*.{ts,tsx}'],
   theme: {
@@ -11,6 +12,6 @@ const config: Config = {
       }
     }
   },
-  plugins: [require('@tailwindcss/forms')],
-};
-export default config;
+  plugins: []
+}
+export default config
