@@ -1,5 +1,5 @@
 'use client';
-export function TypingIndicator({ nickname }: { nickname: string }) {
+export default function TypingIndicator({ nickname }: { nickname: string }) {
   return (
     <div className="flex items-center gap-2 text-sm text-gray-500" role="status" aria-live="polite">
       <span className="relative inline-flex h-2 w-2">

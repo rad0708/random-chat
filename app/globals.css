@@ -5,6 +5,4 @@
 :root { color-scheme: light; }
 body { @apply bg-light text-dark min-h-screen; }
 a { @apply text-primary underline-offset-4 hover:underline; }
-button:focus-visible, input:focus-visible, textarea:focus-visible {
-  @apply ring-2 ring-primary outline-none;
-}
+button:focus-visible, input:focus-visible, textarea:focus-visible { @apply ring-2 ring-primary outline-none; }

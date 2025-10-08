@@ -11,6 +11,15 @@
     "skipLibCheck": true,
     "incremental": false
   },
-  "include": ["server/**/*.ts", "lib/**/*.ts", "types/**/*.d.ts"],
-  "exclude": ["node_modules", "app", "components", "pages", "dist"]
+  "include": [
+    "server/**/*.ts",
+    "lib/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "app",
+    "components",
+    "public",
+    "dist"
+  ]
 }

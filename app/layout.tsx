@@ -1,18 +1,15 @@
 import type { Metadata } from 'next';
-import { Noto_Sans_KR } from 'next/font/google';
 import './globals.css';
-
-const notoSans = Noto_Sans_KR({ subsets: ['latin'], weight: ['400', '500', '700'] });
 
 export const metadata: Metadata = {
   title: '셔플챗 | 익명 랜덤 채팅',
-  description: '셔플챗과 함께 익명으로 새로운 사람과 대화해 보세요.',
+  description: '로그인 없이 즐기는 1:1 랜덤 채팅 서비스',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ko">
-      <body className={notoSans.className}>
+      <body>
         <div className="min-h-screen flex flex-col bg-gradient-to-b from-white to-indigo-50">
           <header className="w-full border-b border-indigo-100 bg-white/80 backdrop-blur">
             <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
@@ -26,7 +23,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <main className="flex-1">{children}</main>
           <footer className="border-t border-indigo-100 bg-white/80 backdrop-blur">
             <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-2 px-4 py-6 text-sm text-gray-600 sm:flex-row">
-              <p className="text-center">© {new Date().getFullYear()} 셔플챗. 모든 권리 보유.</p>
+              <p className="text-center">© {new Date().getFullYear()} 셔플챗</p>
               <div className="flex gap-4">
                 <a href="/policies/terms">이용약관</a>
                 <a href="/policies/privacy">개인정보 처리방침</a>
