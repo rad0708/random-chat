@@ -1,1 +1,0 @@
-import {generateNickname} from '../../lib/nickname'; test('nick',()=>{expect(generateNickname()).toBe('익명')})

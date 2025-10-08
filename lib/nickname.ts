@@ -1,1 +1,0 @@
-export function generateNickname(){return '익명'}
