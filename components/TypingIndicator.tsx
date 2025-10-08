@@ -1,1 +1,0 @@
-export function TypingIndicator(){return <div className='text-gray-500'>상대방이 입력 중...</div>}

@@ -1,1 +1,0 @@
-export function ChatBubble({ nickname, content }: { nickname: string, content: string }) { return (<div className='mb-2'><strong>{nickname}: </strong><span>{content}</span></div>);}

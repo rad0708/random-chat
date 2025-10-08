@@ -1,1 +1,0 @@
-export default function Terms(){return <div className='p-4'><h1>이용약관</h1><p>여기에 약관 내용을 작성하세요.</p></div>}
