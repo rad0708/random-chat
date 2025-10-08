@@ -1,5 +1,15 @@
 {
   "name": "shufflechat",
   "version": "1.0.0",
-  ...
+  "private": true,
+  "scripts": {
+    "dev": "NODE_ENV=development ts-node --project tsconfig.server.json server.ts",
+    "build": "prisma generate && next build && tsc -p tsconfig.server.json",
+    "start": "NODE_ENV=production node dist/server.js",
+    "lint": "eslint .",
+    "test": "npm run test:backend && npm run test:frontend",
+    "test:backend": "jest",
+    "test:frontend": "vitest run"
+  },
+  "engines": { "node": "20.x" }
 }

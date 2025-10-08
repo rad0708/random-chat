@@ -1,1 +1,1 @@
-// 닉네임 생성 테스트
+/* generateNickname 유닛 테스트 */

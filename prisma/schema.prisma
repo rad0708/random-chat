@@ -1,2 +1,6 @@
 generator client { provider = "prisma-client-js" }
-...
+datasource db { provider = "postgresql" url = env("DATABASE_URL") }
+model UserSession { id String @id @default(cuid()) nickname String createdAt DateTime @default(now()) messages Message[] @relation("SessionMessages") }
+model Room { id String @id @default(cuid()) createdAt DateTime @default(now()) messages Message[] }
+model Message { id String @id @default(cuid()) roomId String senderId String content String createdAt DateTime @default(now()) room Room @relation(fields: [roomId], references: [id], onDelete: Cascade) sender UserSession @relation("SessionMessages", fields: [senderId], references: [id], onDelete: Cascade) }
+model Report { id String @id @default(cuid()) reporter String reason String detail String? roomId String? createdAt DateTime @default(now()) }

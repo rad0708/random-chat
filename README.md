@@ -1,3 +1,0 @@
-# ShuffleChat (셔플챗)
-Next.js 기반 랜덤 채팅 서비스.
-...
