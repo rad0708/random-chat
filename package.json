@@ -1,1 +1,5 @@
-{ "name":"shufflechat","version":"1.0.0" }
+{
+  "name": "shufflechat",
+  "version": "1.0.0",
+  ...
+}

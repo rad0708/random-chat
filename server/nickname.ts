@@ -1,1 +1,1 @@
-export function generateNickname(){return '랜덤닉'}
+// 랜덤 닉네임 생성기

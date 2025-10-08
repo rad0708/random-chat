@@ -1,1 +1,1 @@
-export function MessageBubble(){return <div>메시지</div>}
+// 메시지 UI 컴포넌트

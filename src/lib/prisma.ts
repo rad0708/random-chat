@@ -1,1 +1,1 @@
-export const prisma = {} as any
+// Prisma 연결

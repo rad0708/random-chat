@@ -1,1 +1,1 @@
-export default function RootLayout({children}:{children:React.ReactNode}){return <html><body>{children}</body></html>}
+// RootLayout 컴포넌트

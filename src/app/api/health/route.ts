@@ -1,1 +1,1 @@
-export async function GET(){return Response.json({status:'ok'})}
+// 헬스체크 API

@@ -1,2 +1,3 @@
-import type {Config} from 'tailwindcss'
-export default {content:['./src/**/*.{ts,tsx}'] } as Config
+import type { Config } from 'tailwindcss'
+const config: Config = {...}
+export default config

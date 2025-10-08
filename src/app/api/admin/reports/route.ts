@@ -1,1 +1,1 @@
-export async function GET(){return Response.json({ok:true})}
+// 관리자 신고 내역 API

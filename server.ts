@@ -1,1 +1,1 @@
-console.log('server bootstrap')
+// Express + Next.js 서버 엔트리포인트 코드

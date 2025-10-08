@@ -1,1 +1,1 @@
-export function ReportDialog(){return <div>신고</div>}
+// 신고 다이얼로그

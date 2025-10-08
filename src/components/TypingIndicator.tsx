@@ -1,1 +1,1 @@
-export function TypingIndicator(){return <div>입력중...</div>}
+// 입력중 표시 UI

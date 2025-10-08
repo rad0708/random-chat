@@ -1,1 +1,1 @@
-export const prisma = {}
+// Prisma 클라이언트

@@ -1,1 +1,1 @@
-export const schema = {}
+// Zod 기반 데이터 검증

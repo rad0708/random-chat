@@ -1,1 +1,1 @@
-test('닉네임',()=>expect(true).toBe(true))
+// 닉네임 생성 테스트

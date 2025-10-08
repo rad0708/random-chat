@@ -1,1 +1,1 @@
-export default function Policy(){return <main>정책</main>}
+// 정책 페이지

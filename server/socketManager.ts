@@ -1,1 +1,1 @@
-export function registerSocketHandlers(){console.log('소켓 등록')}
+// Socket.IO 매칭 및 메시지 관리

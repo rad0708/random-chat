@@ -1,1 +1,1 @@
-test('렌더링',()=>expect(true).toBe(true))
+// 메시지 버블 테스트

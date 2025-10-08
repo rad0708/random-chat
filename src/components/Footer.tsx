@@ -1,1 +1,1 @@
-export function Footer(){return <footer>푸터</footer>}
+// Footer 컴포넌트

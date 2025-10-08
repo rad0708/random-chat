@@ -1,1 +1,1 @@
-export const validators = {}
+// 검증 스키마

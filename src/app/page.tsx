@@ -1,1 +1,1 @@
-export default function Home(){return <main>홈</main>}
+// 홈 페이지

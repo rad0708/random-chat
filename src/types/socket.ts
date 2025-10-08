@@ -1,1 +1,1 @@
-export type SocketPayload={id:string}
+// Socket 이벤트 타입 정의
