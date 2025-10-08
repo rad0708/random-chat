@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>RandomChat App</title>
+  <meta name="description" content="구글 감성의 모던 채팅 앱 UI"/>
+  <link rel="stylesheet" href="/assets/app.css"/>
+  <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
+</head>
+<body>
+  <header class="appbar">
+    <div class="brand"><a href="/">RandomChat</a></div>
+    <div class="status">
+      <span id="qsize">지금 0명이 기다리는 중</span>
+      <span id="net">연결 확인 중…</span>
+    </div>
+    <div class="tray">
+      <button id="themeBtn" aria-label="테마 전환">🌞</button>
+      <button id="profileBtn" aria-label="프로필">👤</button>
+      <div id="dropdown" class="dropdown hidden">
+        <div class="head">
+          <div class="ava">👤</div>
+          <div class="meta">
+            <strong>게스트</strong><small id="state">대기 중</small>
+          </div>
+        </div>
+        <button id="mTheme" class="row">테마 <span id="themeVal">기기</span></button>
+        <button id="mNotify" class="row">알림 <span id="notifyVal">기본</span></button>
+        <div class="divider"></div>
+        <button id="mLogout" class="row danger">로그아웃</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="viewport">
+    <ul id="log" class="log" aria-live="polite" aria-relevant="additions"></ul>
+    <div id="empty" class="empty">
+      <h2>바로 시작해 보세요</h2>
+      <p class="muted">캡차 인증 후 대기열에 등록됩니다.</p>
+      <button id="startBtn" class="btn primary">매칭 시작</button>
+    </div>
+  </main>
+
+  <footer class="composer">
+    <button id="plusBtn" class="icon">＋</button>
+    <textarea id="input" placeholder="메시지를 입력하세요 (Enter=전송, Shift+Enter=줄바꿈)" maxlength="5000"></textarea>
+    <button id="sendBtn" class="send">▶</button>
+  </footer>
+
+  <div id="fab" class="fab hidden">
+    <button id="nextBtn" class="fab-btn" title="다음">➡️</button>
+    <button id="endBtn" class="fab-btn danger" title="종료">❌</button>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <dialog id="capdlg" class="modal">
+    <div class="card">
+      <h3>보안 확인</h3>
+      <p class="muted">아래 캡차를 완료하면 매칭이 시작됩니다.</p>
+      <div id="captchaBox" class="captcha"></div>
+      <div class="actions"><button id="capCancel">취소</button></div>
+    </div>
+  </dialog>
+
+  <audio id="snd" preload="auto">
+    <source src="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABYAAAABAAgAZGF0YQAAAAA=" type="audio/wav"/>
+  </audio>
+
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" crossorigin="anonymous"></script>
+  <script src="/assets/app.js"></script>
+</body>
+</html>

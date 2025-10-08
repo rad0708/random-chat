@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: random-chat-modern-layout
+    env: node
+    plan: free
+    buildCommand: "npm install"
+    startCommand: "node server.js"
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: HC_SITEKEY
+        sync: false
+      - key: HC_SECRET
+        sync: false
