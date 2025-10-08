@@ -1,0 +1,1 @@
+export function ReportModal(){return(<div>Modal</div>)}

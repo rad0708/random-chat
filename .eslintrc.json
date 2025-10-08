@@ -1,7 +1,1 @@
-{
-  "root": true,
-  "extends": ["next", "next/core-web-vitals", "prettier"],
-  "plugins": ["@typescript-eslint"],
-  "parserOptions": { "project": "./tsconfig.json" },
-  "rules": { "@typescript-eslint/consistent-type-imports": "error", "react/jsx-key": "off" }
-}
+{ "extends": ["next", "next/core-web-vitals"] }

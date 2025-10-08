@@ -1,6 +1,1 @@
-'use client';
-import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
-const tips=["새로운 사람과 부담 없이 대화해 보세요.","닉네임은 매 접속마다 새롭게 생성됩니다.","신고 기능으로 안전한 커뮤니티를 함께 만들어 주세요."];
-export default function HomePage(){const router=useRouter();const[tipIndex,setTipIndex]=useState(0);useEffect(()=>{const i=setInterval(()=>setTipIndex((p)=>(p+1)%tips.length),4000);return()=>clearInterval(i);},[]);return(<section className="flex min-h-[80vh] flex-col items-center justify-center px-4 text-center"><div className="mx-auto max-w-3xl space-y-8"><motion.h1 className="text-4xl font-bold text-dark sm:text-5xl" initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} transition={{duration:0.6}}>셔플챗과 함께 새로운 만남을 시작하세요</motion.h1><motion.p className="text-lg text-gray-700 sm:text-xl" initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} transition={{delay:0.2,duration:0.6}}>셔플챗은 익명으로 즐기는 1:1 랜덤 채팅 서비스입니다. 지금 바로 랜덤 채팅을 시작해보세요.</motion.p><motion.button type="button" className="rounded-full bg-primary px-8 py-4 text-lg font-semibold text-white shadow-lg transition hover:bg-secondary focus-visible:outline-none" onClick={()=>router.push('/chat')} initial={{opacity:0,y:20}} animate={{opacity:1,y:0}} transition={{delay:0.4,duration:0.6}}>랜덤 채팅 시작</motion.button><motion.p key={tipIndex} className="text-sm text-gray-500" initial={{opacity:0}} animate={{opacity:1}} transition={{duration:0.5}}>{tips[tipIndex]}</motion.p></div></section>);}
+export default function Home(){return(<div>Home</div>)}
