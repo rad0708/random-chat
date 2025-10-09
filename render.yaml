@@ -1,15 +1,9 @@
 services:
   - type: web
-    name: random-chat-modern-layout
+    name: random-chat-final
     env: node
     plan: free
     buildCommand: "npm install"
     startCommand: "node server.js"
+    healthCheckPath: "/healthz"
     autoDeploy: true
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: HC_SITEKEY
-        sync: false
-      - key: HC_SECRET
-        sync: false

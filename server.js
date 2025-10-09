@@ -1,136 +1,190 @@
-
+// server.js — DB-free random chat with hCaptcha gate and ads-friendly UX
 const express = require("express");
 const http = require("http");
 const path = require("path");
+const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 const { Server } = require("socket.io");
-const helmet = require("helmet");
-const compression = require("compression");
-const rateLimit = require("express-rate-limit");
-const xss = require("xss");
 
-const HC_SECRET = process.env.HC_SECRET || "";
 const app = express();
-app.set("trust proxy", 1);
-
-app.use(helmet({
-  contentSecurityPolicy: {
-    useDefaults: true,
-    directives: {
-      "script-src": ["'self'", "'unsafe-inline'", "https://cdn.socket.io", "https://js.hcaptcha.com"],
-      "connect-src": ["'self'", "wss:", "https:"],
-      "style-src": ["'self'", "'unsafe-inline'"],
-      "img-src": ["'self'", "data:"],
-      "frame-src": ["https://*.hcaptcha.com"]
-    }
-  }
-}));
-app.use(compression());
-
-app.use("/captcha", rateLimit({ windowMs: 15*60*1000, max: 120 }));
-app.use(express.static(path.join(__dirname, "public"), { maxAge: "1d" }));
-
-app.get("/healthz", (_req,res)=>res.send("ok"));
-app.get("/app", (_req,res)=> res.sendFile(path.join(__dirname,"public","app.html")));
-
 const server = http.createServer(app);
-const io = new Server(server, { pingInterval:20000, pingTimeout:30000 });
+const io = new Server(server, { cors: { origin: "*", methods: ["GET","POST"] } });
 
-// In-memory state
-const waiting = new Set();
-const partners = new Map();
-const verified = new Set();
-const rate = new Map();
+const PORT = process.env.PORT || 3000;
+const HC_SECRET = process.env.HC_SECRET || "";
+const HC_SITEKEY = process.env.HC_SITEKEY || "";
 
-// Simple moderation
-const banned = [/씨발|ㅅㅂ|좆|개새|병신|sex\s*cam|porn|fuck|shit|bitch/i];
-const linkPattern = /https?:\/\/\S+/ig;
+// static + basics
+app.use(express.json());
+app.use(express.static(path.join(__dirname, "public")));
+app.get("/healthz", (_, res) => res.status(200).send("ok"));
+app.get("/env.js", (_, res) => {
+  res.type("application/javascript").send(`window.ENV={HC_SITEKEY:${JSON.stringify(HC_SITEKEY)}};`);
+});
 
-function bad(text){
-  if (banned.some(r=>r.test(text))) return true;
-  const longLinks = (text.match(linkPattern)||[]).filter(u=>u.length>120);
-  return longLinks.length>0;
-}
-
-// Token bucket: 5 / 3s, burst 6
-function allowSend(id){
-  const now = Date.now();
-  const st = rate.get(id) || { tokens:6, ts:now };
-  const refill = Math.floor((now - st.ts)/3000);
-  if (refill>0){
-    st.tokens = Math.min(6, st.tokens + refill*5);
-    st.ts = now;
+// hCaptcha verification
+app.post("/verify-captcha", async (req, res) => {
+  try {
+    const token = req.body && req.body.token;
+    if (!token || !HC_SECRET) return res.status(400).json({ ok:false });
+    const params = new URLSearchParams();
+    params.append("response", token);
+    params.append("secret", HC_SECRET);
+    const r = await fetch("https://hcaptcha.com/siteverify", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: params
+    });
+    const data = await r.json();
+    res.json({ ok: !!data.success });
+  } catch (e) {
+    res.status(500).json({ ok:false });
   }
-  if (st.tokens>=1){ st.tokens--; rate.set(id,st); return true; }
-  rate.set(id,st); return false;
+});
+
+// --- Memory-only state ---
+const queue = [];               // waiting sockets
+const partnerOf = new Map();    // socket.id -> partnerId
+const verified = new Set();     // sockets that passed captcha
+const lastSentAt = new Map();   // rate-limit
+const mutedUntil = new Map();   // temporary mute for spam
+
+// Safety filters
+const BAD_WORDS = ["씨발","개새","자살","fuck","shit"];
+const PII_PATTERNS = [
+  /\b\d{2,3}-\d{3,4}-\d{4}\b/gi, // KR phone
+  /\b010[- ]?\d{4}[- ]?\d{4}\b/gi,
+  /\b[0-9]{8,}\b/gi,
+  /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/gi // email
+];
+
+function sanitizeText(raw) {
+  if (typeof raw !== "string") return "";
+  let t = raw.replace(/\r?\n/g, "\n").trim();
+  // hard length limit (hidden requirement)
+  if (t.length > 100) t = t.slice(0, 100);
+  // escape simple HTML
+  t = t.replace(/[<>&]/g, m => ({ "<":"&lt;", ">":"&gt;", "&":"&amp;" }[m]));
+  // profanity masking
+  for (const w of BAD_WORDS) {
+    const re = new RegExp(w, "gi");
+    t = t.replace(re, "※");
+  }
+  // PII hint masking
+  for (const re of PII_PATTERNS) {
+    t = t.replace(re, "[개인정보-삭제]");
+  }
+  return t;
 }
 
-io.on("connection",(socket)=>{
-  // Captcha token from client
-  socket.on("captcha", async (token)=>{
-    try{
-      if (!HC_SECRET){ verified.add(socket.id); socket.emit("captcha_ok", true); return; }
-      if (!token || token.length<10){ socket.emit("captcha_ok", false); return; }
-      const params = new URLSearchParams();
-      params.append("secret", HC_SECRET);
-      params.append("response", token);
-      const resp = await fetch("https://hcaptcha.com/siteverify", {
-        method: "POST", headers:{"Content-Type":"application/x-www-form-urlencoded"}, body: params
-      });
-      const data = await resp.json();
-      if (data.success){ verified.add(socket.id); socket.emit("captcha_ok", true); }
-      else socket.emit("captcha_ok", false);
-    }catch(e){ socket.emit("captcha_ok", false); }
+function partner(socketId) {
+  const pid = partnerOf.get(socketId);
+  if (!pid) return null;
+  return io.sockets.sockets.get(pid) || null;
+}
+
+function enqueue(s) {
+  if (!s || !s.connected) return;
+  queue.push(s);
+  tryMatch();
+}
+
+function tryMatch() {
+  while (queue.length >= 2) {
+    const a = queue.shift();
+    const b = queue.shift();
+    if (!a?.connected) { if (b?.connected) queue.unshift(b); continue; }
+    if (!b?.connected) { if (a?.connected) queue.unshift(a); continue; }
+    partnerOf.set(a.id, b.id);
+    partnerOf.set(b.id, a.id);
+    io.to(a.id).emit("paired");
+    io.to(b.id).emit("paired");
+    io.to(a.id).emit("system", { text: "대화가 시작되었습니다. 예의를 지켜주세요." });
+    io.to(b.id).emit("system", { text: "대화가 시작되었습니다. 예의를 지켜주세요." });
+  }
+}
+
+function broadcastOnline() {
+  const count = io.engine.clientsCount;
+  io.sockets.emit("online", count);
+}
+
+io.on("connection", (socket) => {
+  broadcastOnline();
+
+  // typing relay
+  socket.on("typing", (v) => {
+    const p = partner(socket.id);
+    if (!p) return;
+    io.to(p.id).emit("typing", !!v);
   });
 
-  socket.on("find", ()=>{
-    if (!verified.has(socket.id)){ socket.emit("toast","캡차 인증 후 이용해 주세요."); return; }
-    if (waiting.size>0){
-      const [p] = waiting;
-      waiting.delete(p);
-      partners.set(socket.id, p);
-      partners.set(p, socket.id);
-      io.to(socket.id).emit("matched");
-      io.to(p).emit("matched");
-    }else{
-      waiting.add(socket.id);
-      io.emit("qsize", waiting.size);
-      socket.emit("waiting");
-    }
+  // start (after captcha)
+  socket.on("start", (payload) => {
+    if (!payload || !payload.verified) return;
+    verified.add(socket.id);
+    enqueue(socket);
+    socket.emit("system", { text: "상대를 찾는 중..." });
   });
 
-  socket.on("send", ({text})=>{
-    if (typeof text!=="string") return;
-    const clean = xss(text.slice(0,5000), { whiteList:{}, stripIgnoreTag:true }).trim();
-    if (!clean) return;
-    if (!allowSend(socket.id)){ socket.emit("toast","너무 빠르게 전송하고 있어요."); return; }
-    if (bad(clean)){ socket.emit("toast","부적절한 메시지로 차단되었습니다."); return; }
-    const pid = partners.get(socket.id);
-    if (!pid){ socket.emit("toast","상대가 아직 연결되지 않았어요."); return; }
+  // chat
+  socket.on("chat", (payload) => {
+    if (!verified.has(socket.id)) return;
     const now = Date.now();
-    socket.emit("recv",{from:"me", text:clean, at: now});
-    io.to(pid).emit("recv",{from:"you", text:clean, at: now});
-  });
+    const until = mutedUntil.get(socket.id) || 0;
+    if (now < until) return;
 
-  socket.on("next", ()=>{
-    const pid = partners.get(socket.id);
-    if (pid){
-      partners.delete(socket.id); partners.delete(pid);
-      io.to(pid).emit("left");
-      waiting.add(pid);
+    // rate limit
+    const last = lastSentAt.get(socket.id) || 0;
+    if (now - last < 700) { // simple spam guard
+      mutedUntil.set(socket.id, now + 1500);
+      socket.emit("system", { text: "조금 천천히 입력해주세요." });
+      return;
     }
-    socket.emit("waiting");
-    waiting.add(socket.id);
-    io.emit("qsize", waiting.size);
+    lastSentAt.set(socket.id, now);
+
+    const text = sanitizeText(payload?.text || "");
+    if (!text) return;
+    const p = partner(socket.id);
+    if (!p) return;
+    io.to(p.id).emit("chat", { text, ts: now });
   });
 
-  socket.on("disconnect", ()=>{
-    waiting.delete(socket.id);
-    const pid = partners.get(socket.id);
-    if (pid){ partners.delete(pid); partners.delete(socket.id); io.to(pid).emit("left"); waiting.add(pid); }
+  // next
+  socket.on("next", () => {
+    const pid = partnerOf.get(socket.id);
+    if (pid) {
+      const p = partner(pid);
+      if (p?.connected) {
+        partnerOf.delete(p.id);
+        io.to(p.id).emit("system", { text: "상대가 나갔습니다. 새로운 상대를 찾는 중..." });
+        enqueue(p);
+      }
+      partnerOf.delete(socket.id);
+    }
+    enqueue(socket);
+    socket.emit("system", { text: "새로운 상대를 찾는 중..." });
+  });
+
+  // disconnect
+  socket.on("disconnect", () => {
+    // remove from queue if present
+    const idx = queue.findIndex(s => s.id === socket.id);
+    if (idx !== -1) queue.splice(idx, 1);
+    const pid = partnerOf.get(socket.id);
+    partnerOf.delete(socket.id);
     verified.delete(socket.id);
-    io.emit("qsize", waiting.size);
+    lastSentAt.delete(socket.id);
+    mutedUntil.delete(socket.id);
+    if (pid) {
+      const p = io.sockets.sockets.get(pid);
+      if (p?.connected) {
+        partnerOf.delete(p.id);
+        io.to(p.id).emit("system", { text: "상대가 연결을 종료했습니다. 새로운 상대를 찾는 중..." });
+        enqueue(p);
+      }
+    }
+    broadcastOnline();
   });
 });
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, ()=> console.log("Server on " + PORT));
+server.listen(PORT, () => console.log(`listening on :${PORT}`));
