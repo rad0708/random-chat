@@ -1,7 +1,7 @@
 {
-  "name": "random-chat-home",
-  "version": "2.0.0",
-  "description": "Upgraded Random Chat website (DB-free, hCaptcha, Ads, Modern UI)",
+  "name": "random-chat-fixed",
+  "version": "2.1.0",
+  "description": "Random Chat with hCaptcha load order fix",
   "main": "server.js",
   "scripts": { "start": "node server.js" },
   "engines": { "node": ">=18" },

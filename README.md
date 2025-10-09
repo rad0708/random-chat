@@ -1,17 +1,11 @@
-# 랜덤채팅 업그레이드 홈페이지
+# 랜덤채팅 (hCaptcha 초기화 문제 수정 버전)
 
-- DB 없음 / hCaptcha 인증 / 광고 슬롯 / 심플 UI
-- Render에 배포 가능
+- DB 없음 / hCaptcha 인증 / 광고 슬롯
+- hCaptcha 로드 순서 보장 (env.js → sitekey 세팅 → 스크립트 로드)
+- Render 배포용
 
 ## 실행
 ```bash
 npm install
 npm start
 ```
-
-## Render 배포
-- Build Command: npm install
-- Start Command: node server.js
-- 환경변수:
-  - HC_SITEKEY (사이트 키)
-  - HC_SECRET (시크릿 키)

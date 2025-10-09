@@ -1,25 +1,34 @@
 <!doctype html>
 <html lang="ko">
 <head>
-  <meta charset="utf-"/>
+  <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>랜덤채팅</title>
   <link rel="stylesheet" href="/style.css"/>
   <script src="/env.js"></script>
-  <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
+  <script>
+    window.addEventListener("load", () => {
+      if(window.ENV?.HC_SITEKEY){
+        document.querySelector(".h-captcha").setAttribute("data-sitekey", window.ENV.HC_SITEKEY);
+        const s = document.createElement("script");
+        s.src = "https://js.hcaptcha.com/1/api.js";
+        s.async = true; s.defer = true;
+        document.head.appendChild(s);
+      }
+    });
+  </script>
 </head>
 <body class="theme-dark">
   <header class="appbar">
     <div class="brand">랜덤채팅</div>
     <div class="spacer"></div>
     <div class="online"><span id="online">0</span>명 온라인</div>
-    <button id="themeToggle">테마</button>
   </header>
 
   <main class="card">
     <section id="gate">
       <p>아래 인증 후 시작 가능합니다.</p>
-      <div id="captcha" class="h-captcha" data-sitekey="" data-callback="onSubmitCaptcha"></div>
+      <div id="captcha" class="h-captcha" data-callback="onSubmitCaptcha"></div>
       <button id="startBtn" disabled>채팅 시작하기</button>
     </section>
 
