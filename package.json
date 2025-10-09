@@ -1,7 +1,7 @@
 {
-  "name": "random-chat-pro",
-  "version": "1.2.0",
-  "description": "Polished DB-free random chat with hCaptcha and ad slots, ready for Render.",
+  "name": "random-chat-home",
+  "version": "2.0.0",
+  "description": "Upgraded Random Chat website (DB-free, hCaptcha, Ads, Modern UI)",
   "main": "server.js",
   "scripts": { "start": "node server.js" },
   "engines": { "node": ">=18" },
