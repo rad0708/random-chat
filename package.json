@@ -1,11 +1,9 @@
 {
-  "name": "random-chat-upgraded",
-  "version": "1.1.0",
-  "description": "Random chat with hCaptcha and ads (DB-free), upgraded & hardened for Render.",
+  "name": "random-chat-pro",
+  "version": "1.2.0",
+  "description": "Polished DB-free random chat with hCaptcha and ad slots, ready for Render.",
   "main": "server.js",
-  "scripts": {
-    "start": "node server.js"
-  },
+  "scripts": { "start": "node server.js" },
   "engines": { "node": ">=18" },
   "dependencies": {
     "express": "^4.19.2",

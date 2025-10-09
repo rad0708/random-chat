@@ -1,4 +1,4 @@
-// public/script.js — upgraded with guards & UX polish
+// public/script.js — polished with guards & UX
 const socket = io({ transports: ["websocket"] });
 
 const $ = (id) => document.getElementById(id);
@@ -153,7 +153,7 @@ $start?.addEventListener("click", () => {
   $status.textContent = "상대를 찾는 중...";
   socket.emit("start", { verified: true });
   // show mid ad after some time
-  setTimeout(()=>{ $adMid.hidden = false; }, 90_000); // 1.5분 후 노출
+  setTimeout(()=>{ $adMid.hidden = false; }, 90_000);
 });
 
 $send?.addEventListener("click", sendMsg);
@@ -169,7 +169,7 @@ $next?.addEventListener("click", () => {
   socket.emit("next");
   addSystem("새로운 상대를 찾는 중...");
   $status.textContent = "상대를 찾는 중...";
-  startTs = Date.now(); // reset timer
+  startTs = Date.now();
 });
 
 function sendMsg() {
