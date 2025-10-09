@@ -1,9 +1,10 @@
-# 랜덤채팅 (DB 없음 · 광고 포함 · Render 배포)
+# 랜덤채팅 (DB 없음 · 광고 포함 · 업그레이드 버전)
 
 - 백엔드: Node.js (Express) + Socket.IO
 - 프론트엔드: HTML/CSS/JS (빌드 불필요)
 - 보안: hCaptcha 인증 (환경변수 `HC_SITEKEY`, `HC_SECRET` 필요)
 - 수익화: 상단/하단 배너 + 중간 광고 카드(플레이스홀더)
+- 안정화: 파트너 조회 버그 수정, 예외 가드, 최소 보안 헤더, 타이핑/전송 스로틀, PII/욕설 필터
 
 
 ## 로컬 실행
@@ -30,13 +31,8 @@ public/
   index.html
   style.css
   script.js
-render.yaml (선택)
 ```
 
 ## 광고 삽입
 - `index.html`의 `.ad-top`, `.ad-bottom`, `.ad-mid`에 광고 스크립트나 iframe 삽입.
 - 중간 광고는 대화 시작 1.5분 후 자동 노출됨(프론트에서 제어).
-
-## 주의
-- 서버/DB에 대화 내용 저장하지 않습니다.
-- 안전을 위해 기본적인 금칙어/개인정보 패턴을 차단합니다.

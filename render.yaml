@@ -1,9 +1,0 @@
-services:
-  - type: web
-    name: random-chat-final
-    env: node
-    plan: free
-    buildCommand: "npm install"
-    startCommand: "node server.js"
-    healthCheckPath: "/healthz"
-    autoDeploy: true

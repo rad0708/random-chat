@@ -1,26 +1,43 @@
-// public/script.js
+// public/script.js — upgraded with guards & UX polish
 const socket = io({ transports: ["websocket"] });
-const $online = document.getElementById("online");
-const $themeToggle = document.getElementById("themeToggle");
-const $gate = document.getElementById("gate");
-const $start = document.getElementById("startBtn");
-const $captcha = document.getElementById("captcha");
-const $chatbox = document.getElementById("chatbox");
-const $status = document.getElementById("status");
-const $timer = document.getElementById("timer");
-const $soundToggle = document.getElementById("soundToggle");
-const $fontToggle = document.getElementById("fontToggle");
-const $chat = document.getElementById("chat");
-const $typing = document.getElementById("typing");
-const $messages = document.getElementById("messages");
-const $input = document.getElementById("input");
-const $send = document.getElementById("send");
-const $next = document.getElementById("next");
-const $adMid = document.getElementById("adMid");
+
+const $ = (id) => document.getElementById(id);
+const $online = $("online");
+const $themeToggle = $("themeToggle");
+const $gate = $("gate");
+const $start = $("startBtn");
+const $chatbox = $("chatbox");
+const $status = $("status");
+const $timer = $("timer");
+const $soundToggle = $("soundToggle");
+const $fontToggle = $("fontToggle");
+const $chat = $("chat");
+const $typing = $("typing");
+const $messages = $("messages");
+const $input = $("input");
+const $send = $("send");
+const $next = $("next");
+const $adMid = $("adMid");
+const $captcha = $("captcha");
 
 let typingTimer = null;
 let startTs = null;
 let notifEnabled = false;
+
+// Audio context reuse
+let audioCtx = null;
+function playBeep() {
+  if (!$soundToggle.checked) return;
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    o.connect(g); g.connect(audioCtx.destination);
+    o.type = "sine"; o.frequency.value = 880;
+    g.gain.value = 0.02;
+    o.start(); setTimeout(()=>{ o.stop(); }, 120);
+  } catch {}
+}
 
 function addMsg(text, cls, ts) {
   const li = document.createElement("li");
@@ -49,32 +66,6 @@ function fmtTime(ts) {
   return `${hh}:${mm}`;
 }
 
-function initCaptcha() {
-  if (!window.ENV?.HC_SITEKEY) return;
-  $captcha.setAttribute("data-sitekey", window.ENV.HC_SITEKEY);
-}
-
-function verifyCaptchaAndEnable() {
-  const widget = window.hcaptcha.getResponse();
-  if (!widget) return;
-  fetch("/verify-captcha", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ token: widget })
-  }).then(r => r.json()).then(d => {
-    if (d.ok) {
-      $start.disabled = false;
-      addSystem("인증이 완료되었습니다. '채팅 시작하기'를 눌러주세요.");
-    } else {
-      addSystem("인증에 실패했습니다. 다시 시도해주세요.");
-      window.hcaptcha.reset();
-    }
-  }).catch(() => {
-    addSystem("인증 서버와 통신 중 문제가 발생했습니다.");
-    window.hcaptcha.reset();
-  });
-}
-
 function startTimer() {
   startTs = Date.now();
   const tick = () => {
@@ -86,19 +77,6 @@ function startTimer() {
     requestAnimationFrame(tick);
   };
   requestAnimationFrame(tick);
-}
-
-function playBeep() {
-  if (!$soundToggle.checked) return;
-  try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.connect(g); g.connect(ctx.destination);
-    o.type = "sine"; o.frequency.value = 880;
-    g.gain.value = 0.02;
-    o.start(); setTimeout(()=>{ o.stop(); ctx.close(); }, 120);
-  } catch (e) {}
 }
 
 // Notifications
@@ -116,32 +94,48 @@ function notify(title, body) {
 }
 
 // Theme & font
-$themeToggle.addEventListener("click", () => {
+$themeToggle?.addEventListener("click", () => {
   const b = document.body;
   b.classList.toggle("theme-light");
 });
-$fontToggle.addEventListener("change", () => {
+$fontToggle?.addEventListener("change", () => {
   document.documentElement.style.fontSize = $fontToggle.checked ? "18px" : "16px";
 });
 
-// Captcha callbacks
-window.onload = () => {
+// hCaptcha
+function initCaptcha() {
+  if (!window.ENV?.HC_SITEKEY || !$captcha) return;
+  $captcha.setAttribute("data-sitekey", window.ENV.HC_SITEKEY);
+}
+function onSubmitCaptcha() {
+  const token = window.hcaptcha.getResponse();
+  if (!token) return;
+  fetch("/verify-captcha", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token })
+  }).then(r => r.json()).then(d => {
+    if (d.ok) {
+      $start.disabled = false;
+      addSystem("인증이 완료되었습니다. '채팅 시작하기'를 눌러주세요.");
+    } else {
+      addSystem("인증에 실패했습니다. 다시 시도해주세요.");
+      window.hcaptcha.reset();
+    }
+  }).catch(() => {
+    addSystem("인증 서버와 통신 중 문제가 발생했습니다.");
+    window.hcaptcha.reset();
+  });
+}
+window.onSubmitCaptcha = onSubmitCaptcha;
+
+window.addEventListener("load", () => {
   initCaptcha();
   requestNotif();
-};
-window.onSubmitCaptcha = verifyCaptchaAndEnable;
-
-// Observe captcha completion via Mutation (hCaptcha callbacks vary)
-const mo = new MutationObserver(() => {
-  try {
-    const resp = window.hcaptcha.getResponse();
-    if (resp) verifyCaptchaAndEnable();
-  } catch(e){}
 });
-mo.observe(document.documentElement, { childList:true, subtree:true });
 
 // Socket events
-socket.on("online", (n) => { $online.textContent = n; });
+socket.on("online", (n) => { if ($online) $online.textContent = n; });
 socket.on("paired", () => { $status.textContent = "상대와 연결됨"; startTimer(); playBeep(); });
 socket.on("system", (p) => { if (p?.text) addSystem(p.text); });
 socket.on("chat", (p) => {
@@ -153,7 +147,7 @@ socket.on("chat", (p) => {
 socket.on("typing", (v) => { $typing.hidden = !v; });
 
 // Start / Next / Send
-$start.addEventListener("click", () => {
+$start?.addEventListener("click", () => {
   $gate.hidden = true;
   $chatbox.hidden = false;
   $status.textContent = "상대를 찾는 중...";
@@ -162,8 +156,8 @@ $start.addEventListener("click", () => {
   setTimeout(()=>{ $adMid.hidden = false; }, 90_000); // 1.5분 후 노출
 });
 
-$send.addEventListener("click", sendMsg);
-$input.addEventListener("keydown", (e) => {
+$send?.addEventListener("click", sendMsg);
+$input?.addEventListener("keydown", (e) => {
   if (e.key === "Enter") sendMsg();
   else {
     socket.emit("typing", true);
@@ -171,7 +165,7 @@ $input.addEventListener("keydown", (e) => {
     typingTimer = setTimeout(()=> socket.emit("typing", false), 900);
   }
 });
-$next.addEventListener("click", () => {
+$next?.addEventListener("click", () => {
   socket.emit("next");
   addSystem("새로운 상대를 찾는 중...");
   $status.textContent = "상대를 찾는 중...";

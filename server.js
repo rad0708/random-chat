@@ -1,4 +1,4 @@
-// server.js — DB-free random chat with hCaptcha gate and ads-friendly UX
+// server.js — Upgraded & hardened (DB-free, hCaptcha, ads)
 const express = require("express");
 const http = require("http");
 const path = require("path");
@@ -13,9 +13,18 @@ const PORT = process.env.PORT || 3000;
 const HC_SECRET = process.env.HC_SECRET || "";
 const HC_SITEKEY = process.env.HC_SITEKEY || "";
 
-// static + basics
-app.use(express.json());
-app.use(express.static(path.join(__dirname, "public")));
+// --- Minimal security headers (no deps) ---
+app.use((req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "SAMEORIGIN");
+  res.setHeader("Referrer-Policy", "no-referrer");
+  res.setHeader("Permissions-Policy", "camera=(), microphone=()"); // no A/V
+  next();
+});
+
+app.use(express.json({ limit: "50kb" }));
+app.use(express.static(path.join(__dirname, "public"), { fallthrough: true, maxAge: "1h", extensions: ["html"] }));
+
 app.get("/healthz", (_, res) => res.status(200).send("ok"));
 app.get("/env.js", (_, res) => {
   res.type("application/javascript").send(`window.ENV={HC_SITEKEY:${JSON.stringify(HC_SITEKEY)}};`);
@@ -35,9 +44,10 @@ app.post("/verify-captcha", async (req, res) => {
       body: params
     });
     const data = await r.json();
-    res.json({ ok: !!data.success });
+    // Optional: check hostname/matched sitekey if needed
+    return res.json({ ok: !!data.success });
   } catch (e) {
-    res.status(500).json({ ok:false });
+    return res.status(500).json({ ok:false });
   }
 });
 
@@ -47,6 +57,7 @@ const partnerOf = new Map();    // socket.id -> partnerId
 const verified = new Set();     // sockets that passed captcha
 const lastSentAt = new Map();   // rate-limit
 const mutedUntil = new Map();   // temporary mute for spam
+const lastTypingAt = new Map(); // typing throttle
 
 // Safety filters
 const BAD_WORDS = ["씨발","개새","자살","fuck","shit"];
@@ -60,7 +71,7 @@ const PII_PATTERNS = [
 function sanitizeText(raw) {
   if (typeof raw !== "string") return "";
   let t = raw.replace(/\r?\n/g, "\n").trim();
-  // hard length limit (hidden requirement)
+  // server-side hard length limit (100 chars)
   if (t.length > 100) t = t.slice(0, 100);
   // escape simple HTML
   t = t.replace(/[<>&]/g, m => ({ "<":"&lt;", ">":"&gt;", "&":"&amp;" }[m]));
@@ -70,16 +81,14 @@ function sanitizeText(raw) {
     t = t.replace(re, "※");
   }
   // PII hint masking
-  for (const re of PII_PATTERNS) {
-    t = t.replace(re, "[개인정보-삭제]");
-  }
+  for (const re of PII_PATTERNS) t = t.replace(re, "[개인정보-삭제]");
   return t;
 }
 
-function partner(socketId) {
-  const pid = partnerOf.get(socketId);
-  if (!pid) return null;
-  return io.sockets.sockets.get(pid) || null;
+function getSocketById(id) { return io.sockets.sockets.get(id) || null; }
+function getPartnerSocket(id) {
+  const pid = partnerOf.get(id);
+  return pid ? getSocketById(pid) : null;
 }
 
 function enqueue(s) {
@@ -111,78 +120,87 @@ function broadcastOnline() {
 io.on("connection", (socket) => {
   broadcastOnline();
 
-  // typing relay
   socket.on("typing", (v) => {
-    const p = partner(socket.id);
-    if (!p) return;
-    io.to(p.id).emit("typing", !!v);
+    try {
+      const now = Date.now();
+      const last = lastTypingAt.get(socket.id) || 0;
+      if (now - last < 300) return; // throttle typing
+      lastTypingAt.set(socket.id, now);
+      const p = getPartnerSocket(socket.id);
+      if (!p) return;
+      io.to(p.id).emit("typing", !!v);
+    } catch {}
   });
 
-  // start (after captcha)
   socket.on("start", (payload) => {
-    if (!payload || !payload.verified) return;
-    verified.add(socket.id);
-    enqueue(socket);
-    socket.emit("system", { text: "상대를 찾는 중..." });
+    try {
+      if (!payload || !payload.verified) return;
+      verified.add(socket.id);
+      enqueue(socket);
+      socket.emit("system", { text: "상대를 찾는 중..." });
+    } catch {}
   });
 
-  // chat
   socket.on("chat", (payload) => {
-    if (!verified.has(socket.id)) return;
-    const now = Date.now();
-    const until = mutedUntil.get(socket.id) || 0;
-    if (now < until) return;
+    try {
+      if (!verified.has(socket.id)) return;
+      const now = Date.now();
+      const until = mutedUntil.get(socket.id) || 0;
+      if (now < until) return;
 
-    // rate limit
-    const last = lastSentAt.get(socket.id) || 0;
-    if (now - last < 700) { // simple spam guard
-      mutedUntil.set(socket.id, now + 1500);
-      socket.emit("system", { text: "조금 천천히 입력해주세요." });
-      return;
-    }
-    lastSentAt.set(socket.id, now);
+      // rate limit
+      const last = lastSentAt.get(socket.id) || 0;
+      if (now - last < 700) { // simple spam guard
+        mutedUntil.set(socket.id, now + 1500);
+        socket.emit("system", { text: "조금 천천히 입력해주세요." });
+        return;
+      }
+      lastSentAt.set(socket.id, now);
 
-    const text = sanitizeText(payload?.text || "");
-    if (!text) return;
-    const p = partner(socket.id);
-    if (!p) return;
-    io.to(p.id).emit("chat", { text, ts: now });
+      const text = sanitizeText(payload && payload.text || "");
+      if (!text) return;
+      const p = getPartnerSocket(socket.id);
+      if (!p) return;
+      io.to(p.id).emit("chat", { text, ts: now });
+    } catch {}
   });
 
-  // next
   socket.on("next", () => {
-    const pid = partnerOf.get(socket.id);
-    if (pid) {
-      const p = partner(pid);
-      if (p?.connected) {
-        partnerOf.delete(p.id);
-        io.to(p.id).emit("system", { text: "상대가 나갔습니다. 새로운 상대를 찾는 중..." });
-        enqueue(p);
+    try {
+      const pid = partnerOf.get(socket.id);
+      if (pid) {
+        const p = getSocketById(pid); // fixed bug: direct lookup
+        if (p?.connected) {
+          partnerOf.delete(p.id);
+          io.to(p.id).emit("system", { text: "상대가 나갔습니다. 새로운 상대를 찾는 중..." });
+          enqueue(p);
+        }
+        partnerOf.delete(socket.id);
       }
-      partnerOf.delete(socket.id);
-    }
-    enqueue(socket);
-    socket.emit("system", { text: "새로운 상대를 찾는 중..." });
+      enqueue(socket);
+      socket.emit("system", { text: "새로운 상대를 찾는 중..." });
+    } catch {}
   });
 
-  // disconnect
   socket.on("disconnect", () => {
-    // remove from queue if present
-    const idx = queue.findIndex(s => s.id === socket.id);
-    if (idx !== -1) queue.splice(idx, 1);
-    const pid = partnerOf.get(socket.id);
-    partnerOf.delete(socket.id);
-    verified.delete(socket.id);
-    lastSentAt.delete(socket.id);
-    mutedUntil.delete(socket.id);
-    if (pid) {
-      const p = io.sockets.sockets.get(pid);
-      if (p?.connected) {
-        partnerOf.delete(p.id);
-        io.to(p.id).emit("system", { text: "상대가 연결을 종료했습니다. 새로운 상대를 찾는 중..." });
-        enqueue(p);
+    try {
+      const idx = queue.findIndex(s => s.id === socket.id);
+      if (idx !== -1) queue.splice(idx, 1);
+      const pid = partnerOf.get(socket.id);
+      partnerOf.delete(socket.id);
+      verified.delete(socket.id);
+      lastSentAt.delete(socket.id);
+      mutedUntil.delete(socket.id);
+      lastTypingAt.delete(socket.id);
+      if (pid) {
+        const p = getSocketById(pid); // fixed bug: direct lookup
+        if (p?.connected) {
+          partnerOf.delete(p.id);
+          io.to(p.id).emit("system", { text: "상대가 연결을 종료했습니다. 새로운 상대를 찾는 중..." });
+          enqueue(p);
+        }
       }
-    }
+    } catch {}
     broadcastOnline();
   });
 });

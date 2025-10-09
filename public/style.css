@@ -19,6 +19,7 @@ body {
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
   color: var(--text);
   background: var(--bg);
+  font-size: 16px;
 }
 .page { max-width: 980px; margin: 0 auto; padding: 0 16px; }
 .appbar{
@@ -34,7 +35,6 @@ body {
 .gate h1{ margin:0 0 6px 0; }
 .muted{ color:var(--muted); }
 
-.captcha{ margin:12px 0; }
 .primary, .ghost{
   padding:10px 14px; border-radius:12px; border:1px solid var(--border); cursor:pointer;
 }
@@ -42,14 +42,14 @@ body {
 .primary:disabled{ opacity:.6; cursor:not-allowed; }
 .ghost{ background:transparent; color:var(--text); }
 
-.statusbar{ display:flex; align-items:center; gap:8px; justify-content:space-between; margin-bottom:8px; }
-.status{ color:var(--muted); }
+.statusbar{ display:flex; align-items:center; gap:8px; justify-content:space-between; margin-bottom:8px; flex-wrap: wrap; }
+.status{ color:var(--muted); min-height:24px; display:flex; align-items:center;}
 .timer{ color:var(--muted); min-width:48px; text-align:right; }
 .switch{ color:var(--muted); display:flex; align-items:center; gap:6px; }
 
 .chat{ background: var(--bg); border:1px solid var(--border); border-radius:16px; height:450px; overflow:auto; padding:8px; scroll-behavior:smooth; }
 ul#messages{ list-style:none; padding:0; margin:0; }
-.msg{ display:inline-block; padding:10px 12px; margin:8px 12px; max-width:80%; border-radius:14px; line-height:1.5; white-space:pre-wrap; word-wrap:break-word; }
+.msg{ display:inline-block; padding:10px 12px; margin:8px 12px; max-width:80%; border-radius:14px; line-height:1.6; white-space:pre-wrap; word-wrap:break-word; }
 .me{ background: var(--bubble-me); border:1px solid #25314b; align-self:flex-end; }
 .partner{ background: var(--bubble-partner); border:1px solid #22304b; }
 .system{ color:var(--muted); margin:8px 12px; display:block; }
