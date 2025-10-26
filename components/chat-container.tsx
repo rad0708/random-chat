@@ -10,11 +10,9 @@ import { SettingsDialog, useSettings } from "@/components/settings-dialog"
 import { ChatHistoryDialog, saveChatSession } from "@/components/chat-history-dialog"
 import { containsProfanity, isSpam } from "@/lib/profanity-filter"
 import { SoundManager } from "@/lib/sound-manager"
-import { verifyCaptcha } from "@/app/actions/verify-captcha"
 import { Send, SkipForward, Loader2 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
-import HCaptcha from "@hcaptcha/react-hcaptcha"
 
 type ChatMessage = {
   id: string
@@ -30,9 +28,6 @@ export function ChatContainer() {
   const [isPartnerTyping, setIsPartnerTyping] = useState(false)
   const [onlineCount, setOnlineCount] = useState(0)
   const [chatDuration, setChatDuration] = useState(0)
-  const [isVerified, setIsVerified] = useState(false)
-  const [showCaptcha, setShowCaptcha] = useState(false)
-  const [isVerifying, setIsVerifying] = useState(false)
 
   const clientRef = useRef<ChatClient | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -40,7 +35,6 @@ export function ChatContainer() {
   const chatStartTimeRef = useRef<number>(0)
   const timerIntervalRef = useRef<NodeJS.Timeout>()
   const soundManagerRef = useRef<SoundManager>(new SoundManager())
-  const captchaRef = useRef<HCaptcha>(null)
 
   const { toast } = useToast()
   const settings = useSettings()
@@ -181,40 +175,7 @@ export function ChatContainer() {
   }
 
   const handleStartChat = () => {
-    if (!isVerified) {
-      setShowCaptcha(true)
-      return
-    }
     clientRef.current?.findPartner()
-  }
-
-  const handleCaptchaVerify = async (token: string) => {
-    setIsVerifying(true)
-    try {
-      const result = await verifyCaptcha(token)
-
-      if (result.success) {
-        setIsVerified(true)
-        setShowCaptcha(false)
-        clientRef.current?.findPartner()
-      } else {
-        toast({
-          title: "인증 실패",
-          description: result.error || "다시 시도해주세요.",
-          variant: "destructive",
-        })
-        captchaRef.current?.resetCaptcha()
-      }
-    } catch (error) {
-      toast({
-        title: "인증 오류",
-        description: "다시 시도해주세요.",
-        variant: "destructive",
-      })
-      captchaRef.current?.resetCaptcha()
-    } finally {
-      setIsVerifying(false)
-    }
   }
 
   const handleNext = () => {
@@ -277,45 +238,13 @@ export function ChatContainer() {
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {chatState === "disconnected" && messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full gap-4">
-            {!showCaptcha ? (
-              <>
-                <div className="text-center space-y-2">
-                  <h2 className="text-2xl font-semibold">랜덤 채팅</h2>
-                  <p className="text-muted-foreground">익명으로 새로운 사람과 대화를 시작하세요</p>
-                </div>
-                <Button onClick={handleStartChat} size="lg" className="gap-2">
-                  채팅 시작하기
-                </Button>
-              </>
-            ) : (
-              <div className="flex flex-col items-center gap-4">
-                <div className="text-center space-y-2">
-                  <h3 className="text-lg font-semibold">본인 확인</h3>
-                  <p className="text-sm text-muted-foreground">로봇이 아님을 확인해주세요</p>
-                </div>
-                <HCaptcha
-                  ref={captchaRef}
-                  sitekey="10000000-ffff-ffff-ffff-000000000001"
-                  onVerify={handleCaptchaVerify}
-                  onError={() => {
-                    toast({
-                      title: "인증 실패",
-                      description: "다시 시도해주세요.",
-                      variant: "destructive",
-                    })
-                  }}
-                />
-                {isVerifying && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span>인증 중...</span>
-                  </div>
-                )}
-                <Button variant="ghost" onClick={() => setShowCaptcha(false)} disabled={isVerifying}>
-                  취소
-                </Button>
-              </div>
-            )}
+            <div className="text-center space-y-2">
+              <h2 className="text-2xl font-semibold">랜덤 채팅</h2>
+              <p className="text-muted-foreground">익명으로 새로운 사람과 대화를 시작하세요</p>
+            </div>
+            <Button onClick={handleStartChat} size="lg" className="gap-2">
+              채팅 시작하기
+            </Button>
           </div>
         )}
 
