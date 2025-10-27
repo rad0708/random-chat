@@ -81,7 +81,7 @@ export function ChatContainer() {
       },
       () => {
         const userMessages = messages.filter((m) => m.sender === "user" || m.sender === "partner").length
-        if (userMessages > 0) {
+        if (userMessages > 0 && chatDuration > 0) {
           saveChatSession(userMessages, chatDuration)
         }
 
@@ -103,7 +103,7 @@ export function ChatContainer() {
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
       if (timerIntervalRef.current) clearInterval(timerIntervalRef.current)
     }
-  }, [])
+  }, [settings.notificationsEnabled])
 
   useEffect(() => {
     const scrollToBottom = () => {
@@ -180,7 +180,7 @@ export function ChatContainer() {
 
   const handleNext = () => {
     const userMessages = messages.filter((m) => m.sender === "user" || m.sender === "partner").length
-    if (userMessages > 0) {
+    if (userMessages > 0 && chatDuration > 0) {
       saveChatSession(userMessages, chatDuration)
     }
 
