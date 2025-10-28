@@ -17,8 +17,9 @@ class ChatStore {
   private sessions = new Map<string, ChatSession>()
   private queue: QueueEntry[] = []
   private queueSet = new Set<string>()
-  private readonly SESSION_TIMEOUT = 2 * 60 * 1000 // 2 minutes
-  private readonly CLEANUP_INTERVAL = 30 * 1000 // 30 seconds
+  private readonly SESSION_TIMEOUT = 30 * 1000 // 30 seconds
+  private readonly CLEANUP_INTERVAL = 10 * 1000 // 10 seconds
+  private readonly POLL_TIMEOUT = 10 * 1000 // 10 seconds - if no poll in 10s, session is dead
   private matchingLock = new Set<string>()
 
   constructor() {
@@ -60,7 +61,11 @@ class ChatStore {
   deleteSession(userId: string) {
     const session = this.sessions.get(userId)
     if (session?.partnerId) {
-      this.disconnectPartner(userId)
+      const partnerSession = this.sessions.get(session.partnerId)
+      if (partnerSession) {
+        partnerSession.partnerId = null
+        partnerSession.isTyping = false
+      }
     }
     this.removeFromQueue(userId)
     this.matchingLock.delete(userId)
@@ -220,7 +225,9 @@ class ChatStore {
     const toDelete: string[] = []
 
     this.sessions.forEach((session, userId) => {
-      if (now - session.lastActivity > this.SESSION_TIMEOUT) {
+      const timeSinceActivity = now - session.lastActivity
+      if (timeSinceActivity > this.SESSION_TIMEOUT || timeSinceActivity > this.POLL_TIMEOUT) {
+        console.log("[v0] Cleaning up inactive session - userId:", userId, "inactive for:", timeSinceActivity, "ms")
         toDelete.push(userId)
       }
     })

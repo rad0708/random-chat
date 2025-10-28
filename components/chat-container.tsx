@@ -71,7 +71,7 @@ export function ChatContainer() {
       } else {
         setUserConnectionQuality("good")
       }
-    }, 2000)
+    }, 3000)
 
     return () => {
       if (connectionCheckIntervalRef.current) {
@@ -179,7 +179,26 @@ export function ChatContainer() {
         clientRef.current.disconnect()
       }
     }
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden" && clientRef.current) {
+        const userId = clientRef.current.getUserId()
+        if (userId) {
+          navigator.sendBeacon("/api/chat/disconnect", JSON.stringify({ userId }))
+        }
+      }
+    }
+
+    const handlePageHide = () => {
+      const userId = clientRef.current?.getUserId()
+      if (userId) {
+        navigator.sendBeacon("/api/chat/disconnect", JSON.stringify({ userId }))
+      }
+    }
+
     window.addEventListener("beforeunload", handleBeforeUnload)
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+    window.addEventListener("pagehide", handlePageHide)
 
     return () => {
       client.disconnect()
@@ -196,6 +215,8 @@ export function ChatContainer() {
         connectionCheckIntervalRef.current = undefined
       }
       window.removeEventListener("beforeunload", handleBeforeUnload)
+      document.removeEventListener("visibilitychange", handleVisibilityChange)
+      window.removeEventListener("pagehide", handlePageHide)
     }
   }, [])
 
@@ -327,18 +348,14 @@ export function ChatContainer() {
   }
 
   const handleStartChat = () => {
-    console.log("[v0] handleStartChat called, chatState:", chatState)
     if (chatState !== "disconnected") {
-      console.log("[v0] Not starting chat, state is not disconnected")
       return
     }
-    console.log("[v0] Finding partner...")
     setPartnerDisconnected(false)
     clientRef.current?.findPartner()
   }
 
   const handleNext = () => {
-    console.log("[v0] handleNext called")
     if (timerIntervalRef.current) {
       clearInterval(timerIntervalRef.current)
       timerIntervalRef.current = undefined
@@ -351,7 +368,6 @@ export function ChatContainer() {
   }
 
   const handleGoHome = () => {
-    console.log("[v0] handleGoHome called")
     if (timerIntervalRef.current) {
       clearInterval(timerIntervalRef.current)
       timerIntervalRef.current = undefined
@@ -390,13 +406,13 @@ export function ChatContainer() {
   return (
     <div className="flex h-full relative">
       <div className="flex flex-col flex-1 relative" style={{ fontSize: `${settings.fontSize}px` }}>
-        <div className="flex items-center justify-between px-6 py-4 border-b bg-card/95 backdrop-blur-md shadow-sm">
-          <div className="flex items-center gap-4">
-            <span className="text-sm font-medium text-foreground/80 whitespace-nowrap">{onlineCount}명 접속중</span>
-            <div className="flex items-center gap-2">
-              {userConnectionQuality === "good" && <Wifi className="w-4 h-4 text-green-500" />}
-              {userConnectionQuality === "poor" && <Wifi className="w-4 h-4 text-yellow-500" />}
-              {userConnectionQuality === "disconnected" && <WifiOff className="w-4 h-4 text-red-500" />}
+        <div className="flex items-center justify-between px-4 py-3 border-b bg-card/95 backdrop-blur-md shadow-sm">
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-foreground/80">{onlineCount}명 접속중</span>
+            <div className="flex items-center gap-1.5">
+              {userConnectionQuality === "good" && <Wifi className="w-3.5 h-3.5 text-green-500" />}
+              {userConnectionQuality === "poor" && <Wifi className="w-3.5 h-3.5 text-yellow-500" />}
+              {userConnectionQuality === "disconnected" && <WifiOff className="w-3.5 h-3.5 text-red-500" />}
               <span className="text-xs text-foreground/60">
                 {userConnectionQuality === "good" && "연결됨"}
                 {userConnectionQuality === "poor" && "불안정"}
@@ -404,30 +420,20 @@ export function ChatContainer() {
               </span>
             </div>
             {chatState === "chatting" && !partnerDisconnected && (
-              <div className="text-sm font-medium text-foreground/80 whitespace-nowrap">{formatTime(chatDuration)}</div>
+              <div className="text-sm font-medium text-foreground/80">{formatTime(chatDuration)}</div>
             )}
           </div>
 
           <div className="flex items-center gap-2">
             {(chatState === "chatting" || partnerDisconnected) && (
               <>
-                <Button
-                  onClick={handleGoHome}
-                  variant="outline"
-                  size="sm"
-                  className="gap-2 border-border/50 hover:border-border bg-transparent hover:bg-accent"
-                >
-                  <Home className="w-4 h-4" />
-                  홈으로
+                <Button onClick={handleGoHome} variant="ghost" size="sm" className="gap-1.5 h-8 px-3">
+                  <Home className="w-3.5 h-3.5" />
+                  <span className="text-sm">홈</span>
                 </Button>
-                <Button
-                  onClick={handleNext}
-                  variant="outline"
-                  size="sm"
-                  className="gap-2 border-border/50 hover:border-border bg-transparent hover:bg-accent"
-                >
-                  <SkipForward className="w-4 h-4" />
-                  다음 상대
+                <Button onClick={handleNext} variant="ghost" size="sm" className="gap-1.5 h-8 px-3">
+                  <SkipForward className="w-3.5 h-3.5" />
+                  <span className="text-sm">다음</span>
                 </Button>
               </>
             )}
@@ -437,19 +443,17 @@ export function ChatContainer() {
           </div>
         </div>
 
-        <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-6 space-y-3">
           {chatState === "disconnected" && !partnerDisconnected && (
-            <div className="flex flex-col items-center justify-center h-full gap-10 px-4">
-              <div className="text-center space-y-4 max-w-lg">
-                <h1 className="text-5xl font-bold tracking-tight">랜덤 채팅</h1>
-                <p className="text-xl text-muted-foreground leading-relaxed">
-                  익명으로 새로운 사람과 대화를 시작하세요
-                </p>
+            <div className="flex flex-col items-center justify-center h-full gap-8 px-4">
+              <div className="text-center space-y-3 max-w-md">
+                <h1 className="text-4xl font-bold tracking-tight">랜덤 채팅</h1>
+                <p className="text-lg text-muted-foreground">익명으로 새로운 사람과 대화를 시작하세요</p>
               </div>
               <Button
                 onClick={handleStartChat}
                 size="lg"
-                className="gap-2 px-10 py-7 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+                className="gap-2 px-8 py-6 text-base font-semibold shadow-lg hover:shadow-xl transition-all"
               >
                 채팅 시작하기
               </Button>
@@ -457,17 +461,17 @@ export function ChatContainer() {
           )}
 
           {chatState === "waiting" && (
-            <div className="flex flex-col items-center justify-center h-full gap-8">
+            <div className="flex flex-col items-center justify-center h-full gap-6">
               <div className="relative">
-                <div className="w-20 h-20 rounded-full border-4 border-muted/30"></div>
-                <div className="absolute inset-0 w-20 h-20 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
+                <div className="w-16 h-16 rounded-full border-4 border-muted/30"></div>
+                <div className="absolute inset-0 w-16 h-16 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
               </div>
-              <p className="text-lg font-medium text-muted-foreground">상대를 찾고 있습니다...</p>
+              <p className="text-base font-medium text-muted-foreground">상대를 찾고 있습니다...</p>
               <Button
                 onClick={() => clientRef.current?.cancelSearch()}
                 variant="outline"
                 size="sm"
-                className="gap-2 mt-2 bg-transparent"
+                className="gap-2 mt-2"
               >
                 <X className="w-4 h-4" />
                 취소
@@ -487,33 +491,31 @@ export function ChatContainer() {
                   )}
                 >
                   {message.sender === "system" ? (
-                    <div className="text-xs text-foreground/60 text-center px-4 py-2 bg-muted/60 rounded-full backdrop-blur-sm">
+                    <div className="text-xs text-foreground/60 text-center px-3 py-1.5 bg-muted/50 rounded-full">
                       {message.content}
                     </div>
                   ) : (
-                    <div className="flex flex-col gap-1.5 max-w-[75%]">
+                    <div className="flex flex-col gap-1 max-w-[70%]">
                       <div
                         className={cn(
-                          "rounded-2xl px-4 py-2.5 break-words transition-all duration-200 w-fit",
-                          message.sender === "user" && "bg-primary text-primary-foreground shadow-md hover:shadow-lg",
-                          message.sender === "partner" && "bg-muted text-foreground shadow-sm hover:shadow-md",
+                          "rounded-2xl px-3.5 py-2 break-words w-fit",
+                          message.sender === "user" && "bg-primary text-primary-foreground shadow-sm",
+                          message.sender === "partner" && "bg-muted text-foreground shadow-sm",
                           settings.bubbleStyle === "square" && "rounded-lg",
                         )}
                       >
                         {message.content}
                       </div>
-                      <div className={cn("flex items-center gap-1.5 px-1", message.sender === "user" && "justify-end")}>
-                        <span className="text-xs text-foreground/70 font-medium">
-                          {formatMessageTime(message.timestamp)}
-                        </span>
+                      <div className={cn("flex items-center gap-1 px-1", message.sender === "user" && "justify-end")}>
+                        <span className="text-xs text-foreground/60">{formatMessageTime(message.timestamp)}</span>
                         {message.sender === "user" && message.status === "sending" && (
-                          <Loader2 className="w-3 h-3 animate-spin text-foreground/70" />
+                          <Loader2 className="w-3 h-3 animate-spin text-foreground/60" />
                         )}
                         {message.sender === "user" && message.status === "sent" && (
-                          <CheckCheck className="w-3.5 h-3.5 text-foreground/70" />
+                          <CheckCheck className="w-3 h-3 text-foreground/60" />
                         )}
                         {message.sender === "user" && message.status === "failed" && (
-                          <AlertCircle className="w-3.5 h-3.5 text-destructive" />
+                          <AlertCircle className="w-3 h-3 text-destructive" />
                         )}
                       </div>
                     </div>
@@ -524,18 +526,18 @@ export function ChatContainer() {
 
           {isPartnerTyping && chatState === "chatting" && !partnerDisconnected && (
             <div className="flex justify-start">
-              <div className="bg-muted rounded-2xl px-5 py-3.5 shadow-sm">
-                <div className="flex gap-1.5">
+              <div className="bg-muted rounded-2xl px-4 py-2.5 shadow-sm">
+                <div className="flex gap-1">
                   <div
-                    className="w-2 h-2 rounded-full bg-muted-foreground/50 animate-bounce"
+                    className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 animate-bounce"
                     style={{ animationDelay: "0ms", animationDuration: "1s" }}
                   />
                   <div
-                    className="w-2 h-2 rounded-full bg-muted-foreground/50 animate-bounce"
+                    className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 animate-bounce"
                     style={{ animationDelay: "150ms", animationDuration: "1s" }}
                   />
                   <div
-                    className="w-2 h-2 rounded-full bg-muted-foreground/50 animate-bounce"
+                    className="w-1.5 h-1.5 rounded-full bg-muted-foreground/50 animate-bounce"
                     style={{ animationDelay: "300ms", animationDuration: "1s" }}
                   />
                 </div>
@@ -546,43 +548,41 @@ export function ChatContainer() {
           <div ref={messagesEndRef} />
         </div>
 
-        {(chatState === "chatting" || partnerDisconnected) && (
-          <div className="p-5 border-t bg-card/95 backdrop-blur-md shadow-sm">
-            <div className="flex items-center justify-between mb-2.5">
-              <span className="text-xs text-foreground/60">
-                {remainingChars < 50 && !partnerDisconnected && (
-                  <span className={cn(remainingChars < 0 && "text-destructive font-medium")}>
-                    {remainingChars}자 남음
-                  </span>
-                )}
-              </span>
-            </div>
-            <div className="flex gap-3">
-              <Input
-                value={inputValue}
-                onChange={(e) => handleInputChange(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault()
-                    handleSendMessage()
-                  }
-                }}
-                placeholder={partnerDisconnected ? "상대가 나갔습니다" : "메시지를 입력하세요..."}
-                className="flex-1 h-11 bg-background border-border/50 focus:border-primary/50 transition-colors"
-                maxLength={MAX_MESSAGE_LENGTH}
-                disabled={partnerDisconnected}
-              />
-              <Button
-                onClick={handleSendMessage}
-                size="icon"
-                disabled={!inputValue.trim() || partnerDisconnected}
-                className="h-11 w-11 shadow-md hover:shadow-lg transition-all duration-300 disabled:opacity-50"
-              >
-                <Send className="w-4 h-4" />
-              </Button>
-            </div>
+        <div className="p-4 border-t bg-card/95 backdrop-blur-md shadow-sm">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs text-foreground/60">
+              {remainingChars < 50 && !partnerDisconnected && (
+                <span className={cn(remainingChars < 0 && "text-destructive font-medium")}>
+                  {remainingChars}자 남음
+                </span>
+              )}
+            </span>
           </div>
-        )}
+          <div className="flex gap-2">
+            <Input
+              value={inputValue}
+              onChange={(e) => handleInputChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault()
+                  handleSendMessage()
+                }
+              }}
+              placeholder={partnerDisconnected ? "상대가 나갔습니다" : "메시지를 입력하세요..."}
+              className="flex-1 h-10 bg-background"
+              maxLength={MAX_MESSAGE_LENGTH}
+              disabled={partnerDisconnected}
+            />
+            <Button
+              onClick={handleSendMessage}
+              size="icon"
+              disabled={!inputValue.trim() || partnerDisconnected}
+              className="h-10 w-10 shadow-sm"
+            >
+              <Send className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   )

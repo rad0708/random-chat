@@ -80,8 +80,6 @@ export class ChatClient {
       this.lastPollTime = now
 
       try {
-        console.log("[v0] Polling with userId:", this.userId)
-
         const response = await fetch("/api/chat/poll", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -91,16 +89,12 @@ export class ChatClient {
           }),
         })
 
-        console.log("[v0] Poll response status:", response.status)
-
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({ error: "Unknown error" }))
-          console.log("[v0] Poll error response:", errorData)
           throw new Error(errorData.error || "Poll request failed")
         }
 
         const data = await response.json()
-        console.log("[v0] Poll data received:", data)
 
         this.consecutiveErrors = 0
 
@@ -127,8 +121,6 @@ export class ChatClient {
           this.messageCount = 0
           this.onStatusChange("chatting")
         } else if (!data.hasPartner && this.status === "chatting") {
-          // Partner disconnected, update status
-          console.log("[v0] Partner disconnected detected in poll")
           this.status = "disconnected"
           this.messageCount = 0
           this.onStatusChange("disconnected")
@@ -142,7 +134,6 @@ export class ChatClient {
           this.stopPolling()
           this.onError?.("연결이 불안정합니다. 재연결을 시도합니다.")
 
-          // Attempt to reconnect
           setTimeout(() => {
             if (!this.isIntentionalDisconnect) {
               this.reconnect()
@@ -182,14 +173,11 @@ export class ChatClient {
 
   async findPartner() {
     if (!this.userId) {
-      console.log("[v0] No userId, connecting first...")
       await this.connect()
-      // Wait a bit for connection to establish
       await new Promise((resolve) => setTimeout(resolve, 500))
     }
 
     if (!this.userId || this.isFindingPartner) {
-      console.log("[v0] Cannot find partner - userId:", this.userId, "isFindingPartner:", this.isFindingPartner)
       return
     }
 
@@ -200,24 +188,18 @@ export class ChatClient {
     this.onStatusChange("waiting")
 
     try {
-      console.log("[v0] Finding partner with userId:", this.userId)
-
       const response = await fetch("/api/chat/find-partner", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: this.userId }),
       })
 
-      console.log("[v0] Find partner response status:", response.status)
-
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: "Unknown error" }))
-        console.log("[v0] Find partner error response:", errorData)
         throw new Error(errorData.error || "Failed to find partner")
       }
 
       const data = await response.json()
-      console.log("[v0] Find partner data received:", data)
 
       if (data.onlineCount !== undefined) {
         this.onOnlineCount(data.onlineCount)
@@ -225,7 +207,7 @@ export class ChatClient {
 
       if (data.status === "matched") {
         if (data.partnerId === this.userId) {
-          console.error("[v0] ERROR: Client detected self-connection! userId:", this.userId)
+          console.error("[v0] Self-connection detected, retrying...")
           this.status = "waiting"
           this.onStatusChange("waiting")
           setTimeout(() => {
@@ -249,34 +231,25 @@ export class ChatClient {
   }
 
   async sendMessage(content: string) {
-    console.log("[v0] sendMessage called - userId:", this.userId, "status:", this.status)
-
     if (!this.userId) {
-      console.log("[v0] Cannot send message - no userId")
       this.onError?.("연결이 끊어졌습니다. 다시 연결해주세요.")
       return false
     }
 
     if (this.status !== "chatting") {
-      console.log("[v0] Cannot send message - status is not chatting:", this.status)
       this.onError?.("채팅 상대가 없습니다.")
       return false
     }
 
     try {
-      console.log("[v0] Sending message:", content)
-
       const response = await fetch("/api/chat/send-message", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: this.userId, content }),
       })
 
-      console.log("[v0] Send message response status:", response.status)
-
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: "Unknown error" }))
-        console.log("[v0] Send message error response:", errorData)
 
         if (errorData.error === "No active chat") {
           this.status = "disconnected"
@@ -289,7 +262,6 @@ export class ChatClient {
       }
 
       const data = await response.json()
-      console.log("[v0] Send message success:", data)
 
       if (data.onlineCount !== undefined) {
         this.onOnlineCount(data.onlineCount)
@@ -389,12 +361,16 @@ export class ChatClient {
     this.stopPolling()
 
     if (this.userId) {
+      const disconnectData = JSON.stringify({ userId: this.userId })
+
       fetch("/api/chat/disconnect", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: this.userId }),
+        body: disconnectData,
         keepalive: true,
-      }).catch(console.error)
+      }).catch(() => {
+        navigator.sendBeacon("/api/chat/disconnect", disconnectData)
+      })
     }
 
     this.userId = null
@@ -402,6 +378,10 @@ export class ChatClient {
     this.messageCount = 0
     this.consecutiveErrors = 0
     this.onStatusChange("disconnected")
+  }
+
+  getUserId(): string | null {
+    return this.userId
   }
 
   getStatus(): ChatStatus {

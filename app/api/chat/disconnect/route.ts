@@ -16,11 +16,8 @@ export async function POST(req: NextRequest) {
     })
   }
 
-  if (session.partnerId) {
-    chatStore.disconnectPartner(userId)
-  }
-
-  chatStore.removeFromQueue(userId)
+  // This ensures the user is immediately removed from online count
+  chatStore.deleteSession(userId)
 
   return NextResponse.json({
     success: true,
