@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: random-chat
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    memoryLimitMb: 512
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        sync: false
