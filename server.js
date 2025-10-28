@@ -19,7 +19,7 @@ if (!fs.existsSync(nextDir)) {
 console.log("Starting Next.js production server...")
 console.log(`Port: ${PORT}`)
 
-const nextStart = spawn("npm", ["start"], {
+const nextStart = spawn("node", ["--max-old-space-size=512", "node_modules/next/dist/bin/next", "start"], {
   env: { ...process.env, PORT: PORT.toString() },
   stdio: "inherit",
   shell: true,
