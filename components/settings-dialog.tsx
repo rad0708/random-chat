@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Slider } from "@/components/ui/slider"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Settings, Trash2 } from "lucide-react"
+import { Settings } from "lucide-react"
 
 type SettingsType = {
   soundEnabled: boolean
@@ -55,18 +55,6 @@ export function SettingsDialog() {
     window.dispatchEvent(new CustomEvent("settings-changed", { detail: newSettings }))
   }
 
-  const resetSettings = () => {
-    setSettings(DEFAULT_SETTINGS)
-    localStorage.setItem("chat-settings", JSON.stringify(DEFAULT_SETTINGS))
-    window.dispatchEvent(new CustomEvent("settings-changed", { detail: DEFAULT_SETTINGS }))
-  }
-
-  const clearChatHistory = () => {
-    localStorage.removeItem("chat-history")
-    window.dispatchEvent(new CustomEvent("chat-history-cleared"))
-    setOpen(false)
-  }
-
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
@@ -79,7 +67,7 @@ export function SettingsDialog() {
           <span className="sr-only">설정</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[425px] max-h-[80vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>설정</DialogTitle>
           <DialogDescription>채팅 환경을 설정하세요</DialogDescription>
@@ -157,27 +145,6 @@ export function SettingsDialog() {
                 className="data-[state=unchecked]:bg-muted data-[state=unchecked]:border data-[state=unchecked]:border-border"
               />
             </div>
-          </div>
-
-          <div className="space-y-3 pt-2 border-t">
-            <h3 className="text-sm font-semibold text-foreground">데이터</h3>
-
-            <Button
-              onClick={clearChatHistory}
-              variant="outline"
-              className="w-full justify-start gap-2 border-border/50 hover:border-destructive/50 hover:bg-destructive/5 hover:text-destructive transition-colors bg-transparent"
-            >
-              <Trash2 className="w-4 h-4" />
-              채팅 기록 삭제
-            </Button>
-
-            <Button
-              onClick={resetSettings}
-              variant="outline"
-              className="w-full border-border/50 hover:border-border bg-transparent"
-            >
-              설정 초기화
-            </Button>
           </div>
         </div>
       </DialogContent>

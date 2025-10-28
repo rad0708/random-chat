@@ -19,17 +19,41 @@ export async function POST(req: NextRequest) {
       session = chatStore.createSession(userId)
     }
 
-    // Disconnect current partner if any
     if (session.partnerId) {
+      console.log(
+        "[v0] User already has a partner, disconnecting first. userId:",
+        userId,
+        "partnerId:",
+        session.partnerId,
+      )
       chatStore.disconnectPartner(userId)
     }
 
     // Try to find a match
     const partnerId = chatStore.findMatch(userId)
-    console.log("[v0] Match result - partnerId:", partnerId)
+    console.log("[v0] Match result - userId:", userId, "partnerId:", partnerId)
 
     if (partnerId) {
+      if (partnerId === userId) {
+        console.error("[v0] ERROR: Attempted to match user with themselves! userId:", userId)
+        return NextResponse.json({
+          status: "waiting",
+          onlineCount: chatStore.getOnlineCount(),
+        })
+      }
+
       chatStore.connectPartners(userId, partnerId)
+
+      const updatedSession = chatStore.getSession(userId)
+      if (updatedSession?.partnerId === userId) {
+        console.error("[v0] ERROR: Self-connection detected after connectPartners! userId:", userId)
+        chatStore.disconnectPartner(userId)
+        return NextResponse.json({
+          status: "waiting",
+          onlineCount: chatStore.getOnlineCount(),
+        })
+      }
+
       return NextResponse.json({
         status: "matched",
         partnerId,

@@ -17,8 +17,8 @@ class ChatStore {
   private sessions = new Map<string, ChatSession>()
   private queue: QueueEntry[] = []
   private queueSet = new Set<string>()
-  private readonly SESSION_TIMEOUT = 5 * 60 * 1000 // 5 minutes
-  private readonly CLEANUP_INTERVAL = 60 * 1000 // 1 minute
+  private readonly SESSION_TIMEOUT = 2 * 60 * 1000 // 2 minutes
+  private readonly CLEANUP_INTERVAL = 30 * 1000 // 30 seconds
   private matchingLock = new Set<string>()
 
   constructor() {
@@ -62,9 +62,9 @@ class ChatStore {
     if (session?.partnerId) {
       this.disconnectPartner(userId)
     }
-    this.sessions.delete(userId)
     this.removeFromQueue(userId)
     this.matchingLock.delete(userId)
+    this.sessions.delete(userId)
     console.log("[v0] Session deleted for userId:", userId, "Total sessions:", this.sessions.size)
   }
 
@@ -81,20 +81,33 @@ class ChatStore {
   }
 
   findMatch(userId: string): string | null {
+    const userSession = this.sessions.get(userId)
+    if (userSession?.partnerId) {
+      console.log("[v0] User already has a partner, skipping match for userId:", userId)
+      return null
+    }
+
     if (this.matchingLock.has(userId)) {
+      console.log("[v0] User is already in matching process, skipping for userId:", userId)
       return null
     }
 
     this.matchingLock.add(userId)
+    console.log("[v0] Starting match search for userId:", userId, "Queue size:", this.queue.length)
 
-    // Remove current user from queue if present
     this.removeFromQueue(userId)
 
     // Find first available user in queue
     for (let i = 0; i < this.queue.length; i++) {
       const entry = this.queue[i]
 
+      if (entry.userId === userId) {
+        console.log("[v0] Skipping self-match for userId:", userId)
+        continue
+      }
+
       if (this.matchingLock.has(entry.userId)) {
+        console.log("[v0] Partner is locked, skipping userId:", entry.userId)
         continue
       }
 
@@ -102,6 +115,7 @@ class ChatStore {
 
       if (partnerSession && !partnerSession.partnerId && entry.userId !== userId) {
         // Match found!
+        console.log("[v0] Match found! userId:", userId, "partnerId:", entry.userId)
         this.queue.splice(i, 1)
         this.queueSet.delete(entry.userId)
         this.matchingLock.add(entry.userId)
@@ -109,42 +123,67 @@ class ChatStore {
       }
     }
 
-    // No match found, add to queue
+    // This prevents issues but still allows users to wait
+    console.log("[v0] No match found, adding to queue userId:", userId)
     this.addToQueue(userId)
     this.matchingLock.delete(userId)
     return null
   }
 
   connectPartners(userId: string, partnerId: string) {
+    if (userId === partnerId) {
+      console.error("[v0] ERROR: Attempted to connect user to themselves! userId:", userId)
+      this.matchingLock.delete(userId)
+      this.matchingLock.delete(partnerId)
+      this.removeFromQueue(userId)
+      return
+    }
+
     const userSession = this.sessions.get(userId)
     const partnerSession = this.sessions.get(partnerId)
 
-    if (userSession && partnerSession) {
-      userSession.partnerId = partnerId
-      userSession.messages = []
-      userSession.isTyping = false
-      partnerSession.partnerId = userId
-      partnerSession.messages = []
-      partnerSession.isTyping = false
-
+    if (!userSession || !partnerSession) {
+      console.error("[v0] ERROR: Missing session in connectPartners. userId:", userId, "partnerId:", partnerId)
       this.matchingLock.delete(userId)
       this.matchingLock.delete(partnerId)
+      return
     }
+
+    if (userSession.partnerId || partnerSession.partnerId) {
+      console.error("[v0] ERROR: One or both users already have partners. userId:", userId, "partnerId:", partnerId)
+      this.matchingLock.delete(userId)
+      this.matchingLock.delete(partnerId)
+      return
+    }
+
+    console.log("[v0] Connecting partners - userId:", userId, "partnerId:", partnerId)
+    userSession.partnerId = partnerId
+    userSession.messages = []
+    userSession.isTyping = false
+    partnerSession.partnerId = userId
+    partnerSession.messages = []
+    partnerSession.isTyping = false
+
+    this.matchingLock.delete(userId)
+    this.matchingLock.delete(partnerId)
   }
 
   disconnectPartner(userId: string) {
     const session = this.sessions.get(userId)
-    if (!session || !session.partnerId) return
+    if (!session) return
 
-    const partnerSession = this.sessions.get(session.partnerId)
-    if (partnerSession) {
-      partnerSession.partnerId = null
-      partnerSession.isTyping = false
+    this.removeFromQueue(userId)
+
+    if (session.partnerId) {
+      const partnerSession = this.sessions.get(session.partnerId)
+      if (partnerSession) {
+        partnerSession.partnerId = null
+        partnerSession.isTyping = false
+      }
     }
 
     session.partnerId = null
     session.isTyping = false
-    this.removeFromQueue(userId)
   }
 
   addMessage(userId: string, content: string, sender: "user" | "partner") {

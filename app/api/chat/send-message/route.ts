@@ -50,9 +50,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No active chat" }, { status: 400 })
     }
 
+    if (session.partnerId === userId) {
+      console.error("[v0] ERROR: User is connected to themselves, cannot send message")
+      return NextResponse.json({ error: "Invalid chat state" }, { status: 400 })
+    }
+
     const filtered = filterMessage(content)
 
-    // Add message to both user's and partner's session
     chatStore.addMessage(userId, filtered, "user")
     chatStore.addMessage(session.partnerId, filtered, "partner")
 

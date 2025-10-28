@@ -32,6 +32,7 @@ export class ChatClient {
   async connect() {
     if (this.isConnecting || this.userId) return
 
+    this.isIntentionalDisconnect = false
     this.isConnecting = true
     try {
       const response = await fetch("/api/chat/connect", { method: "POST" })
@@ -125,6 +126,13 @@ export class ChatClient {
           this.status = "chatting"
           this.messageCount = 0
           this.onStatusChange("chatting")
+        } else if (!data.hasPartner && this.status === "chatting") {
+          // Partner disconnected, update status
+          console.log("[v0] Partner disconnected detected in poll")
+          this.status = "disconnected"
+          this.messageCount = 0
+          this.onStatusChange("disconnected")
+          this.onPartnerDisconnected()
         }
       } catch (error) {
         console.error("[v0] Polling error:", error)
@@ -173,11 +181,22 @@ export class ChatClient {
   }
 
   async findPartner() {
-    if (!this.userId || this.isFindingPartner) return
+    if (!this.userId) {
+      console.log("[v0] No userId, connecting first...")
+      await this.connect()
+      // Wait a bit for connection to establish
+      await new Promise((resolve) => setTimeout(resolve, 500))
+    }
+
+    if (!this.userId || this.isFindingPartner) {
+      console.log("[v0] Cannot find partner - userId:", this.userId, "isFindingPartner:", this.isFindingPartner)
+      return
+    }
 
     this.isFindingPartner = true
     this.status = "waiting"
     this.messageCount = 0
+    this.isIntentionalDisconnect = false
     this.onStatusChange("waiting")
 
     try {
@@ -205,8 +224,19 @@ export class ChatClient {
       }
 
       if (data.status === "matched") {
-        this.status = "chatting"
-        this.onStatusChange("chatting")
+        if (data.partnerId === this.userId) {
+          console.error("[v0] ERROR: Client detected self-connection! userId:", this.userId)
+          this.status = "waiting"
+          this.onStatusChange("waiting")
+          setTimeout(() => {
+            if (this.status === "waiting") {
+              this.findPartner()
+            }
+          }, 1000)
+        } else {
+          this.status = "chatting"
+          this.onStatusChange("chatting")
+        }
       }
     } catch (error) {
       console.error("[v0] Failed to find partner:", error)
@@ -219,27 +249,55 @@ export class ChatClient {
   }
 
   async sendMessage(content: string) {
-    if (!this.userId || this.status !== "chatting") return
+    console.log("[v0] sendMessage called - userId:", this.userId, "status:", this.status)
+
+    if (!this.userId) {
+      console.log("[v0] Cannot send message - no userId")
+      this.onError?.("연결이 끊어졌습니다. 다시 연결해주세요.")
+      return false
+    }
+
+    if (this.status !== "chatting") {
+      console.log("[v0] Cannot send message - status is not chatting:", this.status)
+      this.onError?.("채팅 상대가 없습니다.")
+      return false
+    }
 
     try {
+      console.log("[v0] Sending message:", content)
+
       const response = await fetch("/api/chat/send-message", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: this.userId, content }),
       })
 
+      console.log("[v0] Send message response status:", response.status)
+
       if (!response.ok) {
-        throw new Error("Failed to send message")
+        const errorData = await response.json().catch(() => ({ error: "Unknown error" }))
+        console.log("[v0] Send message error response:", errorData)
+
+        if (errorData.error === "No active chat") {
+          this.status = "disconnected"
+          this.onStatusChange("disconnected")
+          this.onError?.("채팅 상대가 연결을 끊었습니다.")
+        } else {
+          this.onError?.("메시지 전송에 실패했습니다.")
+        }
+        return false
       }
 
       const data = await response.json()
+      console.log("[v0] Send message success:", data)
+
       if (data.onlineCount !== undefined) {
         this.onOnlineCount(data.onlineCount)
       }
 
       return true
     } catch (error) {
-      console.error("Failed to send message:", error)
+      console.error("[v0] Failed to send message:", error)
       this.onError?.("메시지 전송에 실패했습니다.")
       return false
     }

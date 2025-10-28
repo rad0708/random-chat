@@ -9,7 +9,7 @@ import { ReportDialog } from "@/components/report-dialog"
 import { SettingsDialog, useSettings } from "@/components/settings-dialog"
 import { containsProfanity, isSpam } from "@/lib/profanity-filter"
 import { SoundManager } from "@/lib/sound-manager"
-import { Send, SkipForward, Loader2, CheckCheck, AlertCircle, X, ArrowDown } from "lucide-react"
+import { Send, SkipForward, Loader2, CheckCheck, AlertCircle, X, ArrowDown, Wifi, WifiOff, Home } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 
@@ -23,16 +23,6 @@ type ChatMessage = {
 
 const MAX_MESSAGE_LENGTH = 500
 const MESSAGE_COOLDOWN = 1000
-const TEST_MODE_RESPONSES = [
-  "안녕하세요! 테스트 모드입니다.",
-  "좋은 하루 보내세요!",
-  "재미있는 이야기네요.",
-  "그렇군요, 이해했습니다.",
-  "저도 그렇게 생각해요.",
-  "흥미로운 주제네요!",
-  "더 자세히 말씀해주시겠어요?",
-  "정말요? 신기하네요!",
-]
 
 export function ChatContainer() {
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -44,9 +34,9 @@ export function ChatContainer() {
   const [lastMessageTime, setLastMessageTime] = useState(0)
   const [unreadCount, setUnreadCount] = useState(0)
   const [isAtBottom, setIsAtBottom] = useState(true)
-  const [connectionQuality, setConnectionQuality] = useState<"good" | "fair" | "poor">("good")
   const [isMounted, setIsMounted] = useState(false)
-  const [isTestMode, setIsTestMode] = useState(false)
+  const [userConnectionQuality, setUserConnectionQuality] = useState<"good" | "poor" | "disconnected">("disconnected")
+  const [partnerDisconnected, setPartnerDisconnected] = useState(false)
 
   const clientRef = useRef<ChatClient | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -56,6 +46,8 @@ export function ChatContainer() {
   const timerIntervalRef = useRef<NodeJS.Timeout>()
   const soundManagerRef = useRef<SoundManager>(new SoundManager())
   const messageIdsRef = useRef<Set<string>>(new Set())
+  const lastPollTimeRef = useRef<number>(Date.now())
+  const connectionCheckIntervalRef = useRef<NodeJS.Timeout>()
 
   const { toast } = useToast()
   const settings = useSettings()
@@ -63,6 +55,29 @@ export function ChatContainer() {
   useEffect(() => {
     soundManagerRef.current.setEnabled(settings.soundEnabled)
   }, [settings.soundEnabled])
+
+  useEffect(() => {
+    connectionCheckIntervalRef.current = setInterval(() => {
+      const timeSinceLastPoll = Date.now() - lastPollTimeRef.current
+      if (clientRef.current?.isReady()) {
+        if (timeSinceLastPoll > 10000) {
+          setUserConnectionQuality("disconnected")
+        } else if (timeSinceLastPoll > 5000) {
+          setUserConnectionQuality("poor")
+        } else {
+          setUserConnectionQuality("good")
+        }
+      } else {
+        setUserConnectionQuality("disconnected")
+      }
+    }, 2000)
+
+    return () => {
+      if (connectionCheckIntervalRef.current) {
+        clearInterval(connectionCheckIntervalRef.current)
+      }
+    }
+  }, [])
 
   useEffect(() => {
     const container = messagesContainerRef.current
@@ -81,30 +96,18 @@ export function ChatContainer() {
   }, [])
 
   useEffect(() => {
-    const checkConnectionQuality = () => {
-      if (chatState === "disconnected") {
-        setConnectionQuality("poor")
-      } else if (chatState === "waiting") {
-        setConnectionQuality("fair")
-      } else if (chatState === "chatting") {
-        setConnectionQuality("good")
-      }
-    }
-
-    checkConnectionQuality()
-  }, [chatState])
-
-  useEffect(() => {
     setIsMounted(true)
 
     const client = new ChatClient(
       (status) => {
+        console.log("[v0] Chat status changed:", status)
         setChatState(status)
         if (status === "chatting") {
           setMessages([])
           messageIdsRef.current.clear()
           setChatDuration(0)
           chatStartTimeRef.current = Date.now()
+          setPartnerDisconnected(false)
 
           if (timerIntervalRef.current) clearInterval(timerIntervalRef.current)
           timerIntervalRef.current = setInterval(() => {
@@ -114,16 +117,21 @@ export function ChatContainer() {
           addSystemMessage("상대와 연결되었습니다!")
           soundManagerRef.current.playConnectSound()
         }
+        if (status === "disconnected") {
+          setUserConnectionQuality("disconnected")
+        } else {
+          setUserConnectionQuality("good")
+        }
       },
       (newMessages) => {
+        lastPollTimeRef.current = Date.now()
         newMessages.forEach((msg) => {
           const messageId = `${msg.sender}-${msg.timestamp}-${msg.content.substring(0, 20)}`
 
           if (!messageIdsRef.current.has(messageId)) {
             messageIdsRef.current.add(messageId)
-            addMessage(msg.content, msg.sender, msg.timestamp, "sent")
-
             if (msg.sender === "partner") {
+              addMessage(msg.content, msg.sender, msg.timestamp, "sent")
               soundManagerRef.current.playMessageSound()
               if (!isAtBottom) {
                 setUnreadCount((prev) => prev + 1)
@@ -143,8 +151,11 @@ export function ChatContainer() {
         addSystemMessage("상대가 대화를 종료했습니다.")
         soundManagerRef.current.playDisconnectSound()
         setChatDuration(0)
+        setPartnerDisconnected(true)
+        setChatState("disconnected")
       },
       (error) => {
+        console.log("[v0] Chat error:", error)
         toast({
           title: "오류",
           description: error,
@@ -163,21 +174,12 @@ export function ChatContainer() {
     }
     window.addEventListener("beforeunload", handleBeforeUnload)
 
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        // Tab is hidden - could pause some operations
-      } else {
-        // Tab is visible again
-      }
-    }
-    document.addEventListener("visibilitychange", handleVisibilityChange)
-
     return () => {
       client.disconnect()
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
       if (timerIntervalRef.current) clearInterval(timerIntervalRef.current)
+      if (connectionCheckIntervalRef.current) clearInterval(connectionCheckIntervalRef.current)
       window.removeEventListener("beforeunload", handleBeforeUnload)
-      document.removeEventListener("visibilitychange", handleVisibilityChange)
     }
   }, [])
 
@@ -214,29 +216,17 @@ export function ChatContainer() {
     addMessage(content, "system")
   }
 
-  const simulatePartnerResponse = useCallback(() => {
-    if (!isTestMode || chatState !== "chatting") return
-
-    setIsPartnerTyping(true)
-
-    setTimeout(
-      () => {
-        setIsPartnerTyping(false)
-
-        const randomResponse = TEST_MODE_RESPONSES[Math.floor(Math.random() * TEST_MODE_RESPONSES.length)]
-        addMessage(randomResponse, "partner", undefined, "sent")
-        soundManagerRef.current.playMessageSound()
-
-        if (!isAtBottom) {
-          setUnreadCount((prev) => prev + 1)
-        }
-      },
-      1000 + Math.random() * 2000,
-    )
-  }, [isTestMode, chatState, isAtBottom])
-
   const handleSendMessage = useCallback(() => {
-    if (!inputValue.trim() || chatState !== "chatting") return
+    if (!inputValue.trim()) return
+
+    if (chatState !== "chatting") {
+      toast({
+        title: "메시지를 보낼 수 없습니다",
+        description: "채팅 상대가 연결되지 않았습니다.",
+        variant: "destructive",
+      })
+      return
+    }
 
     const now = Date.now()
     if (now - lastMessageTime < MESSAGE_COOLDOWN) {
@@ -276,42 +266,38 @@ export function ChatContainer() {
     }
 
     const messageContent = inputValue
+    const messageId = `user-${new Date().toISOString()}-${messageContent.substring(0, 20)}`
+
     setInputValue("")
     setLastMessageTime(now)
 
+    messageIdsRef.current.add(messageId)
     addMessage(messageContent, "user", undefined, "sending")
 
-    if (isTestMode) {
-      setTimeout(() => {
-        setMessages((prev) => prev.map((msg) => (msg.status === "sending" ? { ...msg, status: "sent" as const } : msg)))
-        simulatePartnerResponse()
-      }, 500)
-    } else {
-      clientRef.current?.sendMessage(messageContent).then((success) => {
-        if (success !== false) {
-          setTimeout(() => {
-            setMessages((prev) =>
-              prev.map((msg) => (msg.status === "sending" ? { ...msg, status: "sent" as const } : msg)),
-            )
-          }, 500)
-        } else {
+    clientRef.current?.sendMessage(messageContent).then((success) => {
+      if (success !== false) {
+        setTimeout(() => {
           setMessages((prev) =>
-            prev.map((msg) => (msg.status === "sending" ? { ...msg, status: "failed" as const } : msg)),
+            prev.map((msg) => (msg.status === "sending" ? { ...msg, status: "sent" as const } : msg)),
           )
-        }
-      })
-    }
+        }, 500)
+      } else {
+        setMessages((prev) =>
+          prev.map((msg) => (msg.status === "sending" ? { ...msg, status: "failed" as const } : msg)),
+        )
+      }
+    })
 
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
-    if (settings.showTypingIndicator && !isTestMode) {
+    if (settings.showTypingIndicator) {
       clientRef.current?.sendTyping(false)
     }
-  }, [inputValue, chatState, lastMessageTime, settings.showTypingIndicator, toast, isTestMode, simulatePartnerResponse])
+  }, [inputValue, chatState, lastMessageTime, settings.showTypingIndicator, toast, isAtBottom])
 
   const handleInputChange = (value: string) => {
     setInputValue(value)
 
-    if (chatState === "chatting" && settings.showTypingIndicator && !isTestMode) {
+    if (chatState === "chatting" && settings.showTypingIndicator) {
       clientRef.current?.sendTyping(true)
 
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
@@ -321,82 +307,38 @@ export function ChatContainer() {
     }
   }
 
-  const handleStartTestMode = () => {
-    setIsTestMode(true)
-    setChatState("chatting")
-    setMessages([])
-    messageIdsRef.current.clear()
-    setChatDuration(0)
-    chatStartTimeRef.current = Date.now()
-
-    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current)
-    timerIntervalRef.current = setInterval(() => {
-      setChatDuration(Math.floor((Date.now() - chatStartTimeRef.current) / 1000))
-    }, 1000)
-
-    addSystemMessage("테스트 모드로 연결되었습니다!")
-    soundManagerRef.current.playConnectSound()
-
-    setTimeout(() => {
-      addMessage("안녕하세요! 테스트 봇입니다. 메시지를 보내보세요!", "partner", undefined, "sent")
-    }, 1000)
-  }
-
   const handleStartChat = () => {
-    if (chatState !== "disconnected") return
-    setIsTestMode(false)
+    console.log("[v0] handleStartChat called, chatState:", chatState)
+    if (chatState !== "disconnected") {
+      console.log("[v0] Not starting chat, state is not disconnected")
+      return
+    }
+    console.log("[v0] Finding partner...")
+    setPartnerDisconnected(false)
     clientRef.current?.findPartner()
   }
 
   const handleNext = () => {
     if (timerIntervalRef.current) clearInterval(timerIntervalRef.current)
     setChatDuration(0)
-
-    if (isTestMode) {
-      setMessages([])
-      messageIdsRef.current.clear()
-      chatStartTimeRef.current = Date.now()
-      addSystemMessage("새로운 테스트 세션이 시작되었습니다!")
-      setTimeout(() => {
-        addMessage("안녕하세요! 새로운 테스트 봇입니다.", "partner", undefined, "sent")
-      }, 1000)
-    } else {
-      clientRef.current?.next()
-    }
-  }
-
-  const handleCancelSearch = () => {
-    if (chatState === "waiting") {
-      clientRef.current?.cancelSearch()
-      setChatState("disconnected")
-      setMessages([])
-      messageIdsRef.current.clear()
-      setChatDuration(0)
-      setOnlineCount(0)
-      setUnreadCount(0)
-      setIsAtBottom(true)
-      setConnectionQuality("good")
-      setIsMounted(false)
-      setIsTestMode(false)
-      soundManagerRef.current.playDisconnectSound()
-    }
+    setPartnerDisconnected(false)
+    clientRef.current?.next()
   }
 
   const handleGoHome = () => {
+    console.log("[v0] handleGoHome called")
     if (timerIntervalRef.current) clearInterval(timerIntervalRef.current)
     setChatDuration(0)
     setMessages([])
     messageIdsRef.current.clear()
-    setChatState("disconnected")
-    setOnlineCount(0)
     setUnreadCount(0)
     setIsAtBottom(true)
-    setConnectionQuality("good")
-    setIsTestMode(false)
+    setPartnerDisconnected(false)
 
-    if (!isTestMode) {
-      clientRef.current?.disconnect()
-    }
+    clientRef.current?.disconnect()
+    setChatState("disconnected")
+    setUserConnectionQuality("disconnected")
+    setIsPartnerTyping(false)
   }
 
   const formatTime = (seconds: number) => {
@@ -422,27 +364,18 @@ export function ChatContainer() {
       <div className="flex flex-col flex-1 relative" style={{ fontSize: `${settings.fontSize}px` }}>
         <div className="flex items-center justify-between px-6 py-4 border-b bg-card/95 backdrop-blur-md shadow-sm">
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2.5">
-              <div
-                className={cn(
-                  "w-2.5 h-2.5 rounded-full flex-shrink-0 transition-all duration-300",
-                  connectionQuality === "good" && "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]",
-                  connectionQuality === "fair" && "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.5)]",
-                  connectionQuality === "poor" && "bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.5)]",
-                )}
-                title={
-                  connectionQuality === "good"
-                    ? "연결 상태 양호"
-                    : connectionQuality === "fair"
-                      ? "연결 대기중"
-                      : "연결 끊김"
-                }
-              />
-              <span className="text-sm font-medium text-foreground/80 whitespace-nowrap">
-                {isTestMode ? "테스트 모드" : `${onlineCount}명 접속중`}
+            <span className="text-sm font-medium text-foreground/80 whitespace-nowrap">{onlineCount}명 접속중</span>
+            <div className="flex items-center gap-2">
+              {userConnectionQuality === "good" && <Wifi className="w-4 h-4 text-green-500" />}
+              {userConnectionQuality === "poor" && <Wifi className="w-4 h-4 text-yellow-500" />}
+              {userConnectionQuality === "disconnected" && <WifiOff className="w-4 h-4 text-red-500" />}
+              <span className="text-xs text-foreground/60">
+                {userConnectionQuality === "good" && "연결됨"}
+                {userConnectionQuality === "poor" && "불안정"}
+                {userConnectionQuality === "disconnected" && "연결 끊김"}
               </span>
             </div>
-            {chatState === "chatting" && (
+            {chatState === "chatting" && !partnerDisconnected && (
               <div className="text-sm font-medium text-foreground/80 whitespace-nowrap">{formatTime(chatDuration)}</div>
             )}
           </div>
@@ -460,8 +393,8 @@ export function ChatContainer() {
             )}
             <SettingsDialog />
             <ThemeToggle />
-            {chatState === "chatting" && !isTestMode && <ReportDialog />}
-            {chatState === "chatting" && (
+            {chatState === "chatting" && !partnerDisconnected && <ReportDialog />}
+            {chatState === "chatting" && !partnerDisconnected && (
               <Button
                 onClick={handleNext}
                 variant="outline"
@@ -476,7 +409,7 @@ export function ChatContainer() {
         </div>
 
         <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-4">
-          {chatState === "disconnected" && messages.length === 0 && (
+          {chatState === "disconnected" && messages.length === 0 && !partnerDisconnected && (
             <div className="flex flex-col items-center justify-center h-full gap-10 px-4">
               <div className="text-center space-y-4 max-w-lg">
                 <h1 className="text-5xl font-bold tracking-tight">랜덤 채팅</h1>
@@ -484,21 +417,42 @@ export function ChatContainer() {
                   익명으로 새로운 사람과 대화를 시작하세요
                 </p>
               </div>
-              <div className="flex flex-col gap-3">
+              <Button
+                onClick={handleStartChat}
+                size="lg"
+                className="gap-2 px-10 py-7 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+              >
+                채팅 시작하기
+              </Button>
+            </div>
+          )}
+
+          {partnerDisconnected && (
+            <div className="flex flex-col items-center justify-center h-full gap-8">
+              <div className="text-center space-y-4 max-w-lg">
+                <div className="w-20 h-20 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-4">
+                  <AlertCircle className="w-10 h-10 text-muted-foreground" />
+                </div>
+                <h2 className="text-2xl font-bold">상대가 대화를 종료했습니다</h2>
+                <p className="text-muted-foreground">다음 상대를 찾거나 홈으로 돌아가세요</p>
+              </div>
+              <div className="flex gap-4">
                 <Button
-                  onClick={handleStartChat}
+                  onClick={handleGoHome}
+                  variant="outline"
                   size="lg"
-                  className="gap-2 px-10 py-7 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+                  className="gap-2 px-8 py-6 text-base font-semibold bg-transparent"
                 >
-                  채팅 시작하기
+                  <Home className="w-5 h-5" />
+                  홈으로
                 </Button>
                 <Button
-                  onClick={handleStartTestMode}
+                  onClick={handleNext}
                   size="lg"
-                  variant="outline"
-                  className="gap-2 px-10 py-7 text-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 bg-transparent"
+                  className="gap-2 px-8 py-6 text-base font-semibold shadow-lg hover:shadow-xl transition-all duration-300"
                 >
-                  테스트 모드
+                  <SkipForward className="w-5 h-5" />
+                  다음 상대 찾기
                 </Button>
               </div>
             </div>
@@ -511,7 +465,12 @@ export function ChatContainer() {
                 <div className="absolute inset-0 w-20 h-20 rounded-full border-4 border-primary border-t-transparent animate-spin"></div>
               </div>
               <p className="text-lg font-medium text-muted-foreground">상대를 찾고 있습니다...</p>
-              <Button onClick={handleCancelSearch} variant="outline" size="sm" className="gap-2 mt-2 bg-transparent">
+              <Button
+                onClick={() => clientRef.current?.cancelSearch()}
+                variant="outline"
+                size="sm"
+                className="gap-2 mt-2 bg-transparent"
+              >
                 <X className="w-4 h-4" />
                 취소
               </Button>
@@ -564,7 +523,7 @@ export function ChatContainer() {
             </div>
           ))}
 
-          {isPartnerTyping && chatState === "chatting" && (
+          {isPartnerTyping && chatState === "chatting" && !partnerDisconnected && (
             <div className="flex justify-start">
               <div className="bg-muted rounded-2xl px-5 py-3.5 shadow-sm">
                 <div className="flex gap-1.5">
@@ -588,7 +547,7 @@ export function ChatContainer() {
           <div ref={messagesEndRef} />
         </div>
 
-        {!isAtBottom && chatState === "chatting" && (
+        {!isAtBottom && chatState === "chatting" && !partnerDisconnected && (
           <div className="absolute bottom-28 left-1/2 -translate-x-1/2 z-10">
             <Button
               onClick={scrollToBottom}
@@ -602,7 +561,7 @@ export function ChatContainer() {
           </div>
         )}
 
-        {chatState === "chatting" && (
+        {chatState === "chatting" && !partnerDisconnected && (
           <div className="p-5 border-t bg-card/95 backdrop-blur-md shadow-sm">
             <div className="flex items-center justify-between mb-2.5">
               <span className="text-xs text-foreground/60">
