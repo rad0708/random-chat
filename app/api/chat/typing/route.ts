@@ -4,12 +4,16 @@ import { chatStore } from "@/lib/chat-store"
 export async function POST(req: NextRequest) {
   const { userId, isTyping } = await req.json()
 
-  const session = chatStore.getSession(userId)
+  let session = chatStore.getSession(userId)
   if (!session) {
-    return NextResponse.json({ error: "Session not found" }, { status: 404 })
+    console.log("[v0] Session not found, creating new session for userId:", userId)
+    session = chatStore.createSession(userId)
   }
 
   chatStore.setTyping(userId, isTyping)
 
-  return NextResponse.json({ success: true })
+  return NextResponse.json({
+    success: true,
+    onlineCount: chatStore.getOnlineCount(),
+  })
 }

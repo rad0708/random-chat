@@ -5,6 +5,7 @@ type ChatSession = {
   messages: Array<{ content: string; sender: "user" | "partner"; timestamp: string }>
   isTyping: boolean
   lastActivity: number
+  connectedAt: number
 }
 
 type QueueEntry = {
@@ -15,8 +16,10 @@ type QueueEntry = {
 class ChatStore {
   private sessions = new Map<string, ChatSession>()
   private queue: QueueEntry[] = []
+  private queueSet = new Set<string>()
   private readonly SESSION_TIMEOUT = 5 * 60 * 1000 // 5 minutes
   private readonly CLEANUP_INTERVAL = 60 * 1000 // 1 minute
+  private matchingLock = new Set<string>()
 
   constructor() {
     // Cleanup inactive sessions periodically
@@ -26,14 +29,23 @@ class ChatStore {
   }
 
   createSession(userId: string): ChatSession {
+    const existingSession = this.sessions.get(userId)
+    if (existingSession) {
+      console.log("[v0] Reusing existing session for userId:", userId)
+      existingSession.lastActivity = Date.now()
+      return existingSession
+    }
+
     const session: ChatSession = {
       userId,
       partnerId: null,
       messages: [],
       isTyping: false,
       lastActivity: Date.now(),
+      connectedAt: Date.now(),
     }
     this.sessions.set(userId, session)
+    console.log("[v0] Created new session for userId:", userId, "Total sessions:", this.sessions.size)
     return session
   }
 
@@ -52,36 +64,54 @@ class ChatStore {
     }
     this.sessions.delete(userId)
     this.removeFromQueue(userId)
+    this.matchingLock.delete(userId)
+    console.log("[v0] Session deleted for userId:", userId, "Total sessions:", this.sessions.size)
   }
 
   addToQueue(userId: string) {
-    if (!this.queue.find((entry) => entry.userId === userId)) {
+    if (!this.queueSet.has(userId)) {
       this.queue.push({ userId, timestamp: Date.now() })
+      this.queueSet.add(userId)
     }
   }
 
   removeFromQueue(userId: string) {
     this.queue = this.queue.filter((entry) => entry.userId !== userId)
+    this.queueSet.delete(userId)
   }
 
   findMatch(userId: string): string | null {
+    if (this.matchingLock.has(userId)) {
+      return null
+    }
+
+    this.matchingLock.add(userId)
+
     // Remove current user from queue if present
     this.removeFromQueue(userId)
 
     // Find first available user in queue
     for (let i = 0; i < this.queue.length; i++) {
       const entry = this.queue[i]
+
+      if (this.matchingLock.has(entry.userId)) {
+        continue
+      }
+
       const partnerSession = this.sessions.get(entry.userId)
 
       if (partnerSession && !partnerSession.partnerId && entry.userId !== userId) {
         // Match found!
         this.queue.splice(i, 1)
+        this.queueSet.delete(entry.userId)
+        this.matchingLock.add(entry.userId)
         return entry.userId
       }
     }
 
     // No match found, add to queue
     this.addToQueue(userId)
+    this.matchingLock.delete(userId)
     return null
   }
 
@@ -92,8 +122,13 @@ class ChatStore {
     if (userSession && partnerSession) {
       userSession.partnerId = partnerId
       userSession.messages = []
+      userSession.isTyping = false
       partnerSession.partnerId = userId
       partnerSession.messages = []
+      partnerSession.isTyping = false
+
+      this.matchingLock.delete(userId)
+      this.matchingLock.delete(partnerId)
     }
   }
 
@@ -104,9 +139,11 @@ class ChatStore {
     const partnerSession = this.sessions.get(session.partnerId)
     if (partnerSession) {
       partnerSession.partnerId = null
+      partnerSession.isTyping = false
     }
 
     session.partnerId = null
+    session.isTyping = false
     this.removeFromQueue(userId)
   }
 
@@ -120,6 +157,10 @@ class ChatStore {
       }
       session.messages.push(message)
       session.lastActivity = Date.now()
+
+      if (session.messages.length > 1000) {
+        session.messages = session.messages.slice(-1000)
+      }
     }
   }
 
@@ -147,9 +188,33 @@ class ChatStore {
 
     toDelete.forEach((userId) => this.deleteSession(userId))
 
-    // Clean up old queue entries
-    this.queue = this.queue.filter((entry) => now - entry.timestamp < this.SESSION_TIMEOUT)
+    const validQueue: QueueEntry[] = []
+    const validQueueSet = new Set<string>()
+
+    this.queue.forEach((entry) => {
+      if (now - entry.timestamp < this.SESSION_TIMEOUT && this.sessions.has(entry.userId)) {
+        validQueue.push(entry)
+        validQueueSet.add(entry.userId)
+      }
+    })
+
+    this.queue = validQueue
+    this.queueSet = validQueueSet
+
+    this.matchingLock.forEach((userId) => {
+      if (!this.sessions.has(userId)) {
+        this.matchingLock.delete(userId)
+      }
+    })
   }
 }
 
-export const chatStore = new ChatStore()
+const globalForChatStore = globalThis as unknown as {
+  chatStore: ChatStore | undefined
+}
+
+export const chatStore = globalForChatStore.chatStore ?? new ChatStore()
+
+if (process.env.NODE_ENV !== "production") {
+  globalForChatStore.chatStore = chatStore
+}

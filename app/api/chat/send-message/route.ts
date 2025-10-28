@@ -25,18 +25,43 @@ function filterMessage(content: string): string {
 }
 
 export async function POST(req: NextRequest) {
-  const { userId, content } = await req.json()
+  try {
+    const { userId, content } = await req.json()
 
-  const session = chatStore.getSession(userId)
-  if (!session || !session.partnerId) {
-    return NextResponse.json({ error: "No active chat" }, { status: 400 })
+    if (!userId || typeof userId !== "string") {
+      return NextResponse.json({ error: "Invalid userId" }, { status: 400 })
+    }
+
+    if (!content || typeof content !== "string" || content.trim().length === 0) {
+      return NextResponse.json({ error: "Invalid message content" }, { status: 400 })
+    }
+
+    if (content.length > 500) {
+      return NextResponse.json({ error: "Message too long" }, { status: 400 })
+    }
+
+    let session = chatStore.getSession(userId)
+    if (!session) {
+      console.log("[v0] Session not found, creating new session for userId:", userId)
+      session = chatStore.createSession(userId)
+    }
+
+    if (!session.partnerId) {
+      return NextResponse.json({ error: "No active chat" }, { status: 400 })
+    }
+
+    const filtered = filterMessage(content)
+
+    // Add message to both user's and partner's session
+    chatStore.addMessage(userId, filtered, "user")
+    chatStore.addMessage(session.partnerId, filtered, "partner")
+
+    return NextResponse.json({
+      success: true,
+      onlineCount: chatStore.getOnlineCount(),
+    })
+  } catch (error) {
+    console.error("Send message error:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
-
-  const filtered = filterMessage(content)
-
-  // Add message to both user's and partner's session
-  chatStore.addMessage(userId, filtered, "user")
-  chatStore.addMessage(session.partnerId, filtered, "partner")
-
-  return NextResponse.json({ success: true })
 }
