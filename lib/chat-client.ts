@@ -18,7 +18,7 @@ export class ChatClient {
   private lastPollTime = 0
   private consecutiveErrors = 0
   private readonly MAX_RETRIES = 3
-  private readonly POLL_INTERVAL = 500
+  private readonly POLL_INTERVAL = 1000
 
   constructor(
     private onStatusChange: (status: ChatStatus) => void,
@@ -29,13 +29,24 @@ export class ChatClient {
     private onError?: (error: string) => void,
   ) {}
 
+  isReady(): boolean {
+    return this.userId !== null && !this.isIntentionalDisconnect
+  }
+
+  getUserId(): string | null {
+    return this.userId
+  }
+
   async connect() {
     if (this.isConnecting || this.userId) return
 
     this.isIntentionalDisconnect = false
     this.isConnecting = true
     try {
-      const response = await fetch("/api/chat/connect", { method: "POST" })
+      const response = await fetch("/api/chat/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      })
 
       if (!response.ok) {
         throw new Error("Failed to connect to server")
@@ -48,7 +59,7 @@ export class ChatClient {
       this.consecutiveErrors = 0
       this.startPolling()
     } catch (error) {
-      console.error("Failed to connect:", error)
+      console.error("[v0] Failed to connect:", error)
       this.onError?.("연결에 실패했습니다. 다시 시도해주세요.")
       this.consecutiveErrors++
 
@@ -120,7 +131,7 @@ export class ChatClient {
           this.status = "chatting"
           this.messageCount = 0
           this.onStatusChange("chatting")
-        } else if (!data.hasPartner && this.status === "chatting") {
+        } else if (!data.hasPartner && this.status === "chatting" && !data.partnerDisconnected) {
           this.status = "disconnected"
           this.messageCount = 0
           this.onStatusChange("disconnected")
@@ -148,6 +159,7 @@ export class ChatClient {
     this.stopPolling()
     const oldUserId = this.userId
     this.userId = null
+    this.consecutiveErrors = 0
 
     if (oldUserId) {
       try {
@@ -157,7 +169,7 @@ export class ChatClient {
           body: JSON.stringify({ userId: oldUserId }),
         })
       } catch (error) {
-        console.error("Failed to disconnect old session:", error)
+        console.error("[v0] Failed to disconnect old session:", error)
       }
     }
 
@@ -212,6 +224,7 @@ export class ChatClient {
           this.onStatusChange("waiting")
           setTimeout(() => {
             if (this.status === "waiting") {
+              this.isFindingPartner = false
               this.findPartner()
             }
           }, 1000)
@@ -254,59 +267,85 @@ export class ChatClient {
         if (errorData.error === "No active chat") {
           this.status = "disconnected"
           this.onStatusChange("disconnected")
-          this.onError?.("채팅 상대가 연결을 끊었습니다.")
-        } else {
-          this.onError?.("메시지 전송에 실패했습니다.")
         }
+        this.onError?.(errorData.error || "Unknown error")
         return false
       }
-
-      const data = await response.json()
-
-      if (data.onlineCount !== undefined) {
-        this.onOnlineCount(data.onlineCount)
-      }
-
-      return true
     } catch (error) {
       console.error("[v0] Failed to send message:", error)
-      this.onError?.("메시지 전송에 실패했습니다.")
+      this.onError?.("메시지를 보내는 데 실패했습니다.")
       return false
     }
+
+    return true
   }
 
   async sendTyping(isTyping: boolean) {
     if (!this.userId || this.status !== "chatting") return
 
     try {
-      const response = await fetch("/api/chat/typing", {
+      await fetch("/api/chat/typing", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: this.userId, isTyping }),
       })
-
-      if (!response.ok) {
-        throw new Error("Failed to send typing status")
-      }
-
-      const data = await response.json()
-      if (data.onlineCount !== undefined) {
-        this.onOnlineCount(data.onlineCount)
-      }
     } catch (error) {
-      console.error("Failed to send typing status:", error)
+      console.error("[v0] Failed to send typing status:", error)
+    }
+  }
+
+  async cancelSearch() {
+    if (!this.userId || this.isCanceling) return
+
+    this.isCanceling = true
+    this.isIntentionalDisconnect = true
+
+    try {
+      await fetch("/api/chat/disconnect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: this.userId }),
+      })
+
+      this.status = "disconnected"
+      this.messageCount = 0
+      this.onStatusChange("disconnected")
+    } catch (error) {
+      console.error("[v0] Failed to cancel search:", error)
+    } finally {
+      this.isCanceling = false
+      this.isIntentionalDisconnect = false
     }
   }
 
   async next() {
-    if (this.status === "chatting") {
-      await this.disconnectChat()
+    if (!this.userId) return
+
+    this.isIntentionalDisconnect = true
+    this.status = "waiting"
+    this.messageCount = 0
+
+    try {
+      await fetch("/api/chat/disconnect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: this.userId }),
+      })
+
+      this.isIntentionalDisconnect = false
+      await this.findPartner()
+    } catch (error) {
+      console.error("[v0] Failed to find next partner:", error)
+      this.onError?.("다음 상대를 찾는 데 실패했습니다.")
+      this.isIntentionalDisconnect = false
     }
-    await this.findPartner()
   }
 
-  private async disconnectChat() {
+  async disconnect() {
     if (!this.userId) return
+
+    this.isIntentionalDisconnect = true
+    this.stopPolling()
 
     try {
       await fetch("/api/chat/disconnect", {
@@ -315,80 +354,11 @@ export class ChatClient {
         body: JSON.stringify({ userId: this.userId }),
       })
     } catch (error) {
-      console.error("Failed to disconnect from chat:", error)
-    }
-
-    this.status = "disconnected"
-    this.messageCount = 0
-    this.onStatusChange("disconnected")
-  }
-
-  async cancelSearch() {
-    if (!this.userId || this.status !== "waiting" || this.isCanceling) return
-
-    this.isCanceling = true
-
-    try {
-      const response = await fetch("/api/chat/disconnect", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: this.userId }),
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to cancel search")
-      }
-
-      const data = await response.json()
-      if (data.onlineCount !== undefined) {
-        this.onOnlineCount(data.onlineCount)
-      }
-
+      console.error("[v0] Failed to disconnect:", error)
+    } finally {
+      this.userId = null
       this.status = "disconnected"
       this.messageCount = 0
-      this.onStatusChange("disconnected")
-    } catch (error) {
-      console.error("Failed to cancel search:", error)
-      this.onError?.("취소에 실패했습니다.")
-    } finally {
-      this.isCanceling = false
     }
-  }
-
-  disconnect() {
-    this.isIntentionalDisconnect = true
-
-    this.stopPolling()
-
-    if (this.userId) {
-      const disconnectData = JSON.stringify({ userId: this.userId })
-
-      fetch("/api/chat/disconnect", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: disconnectData,
-        keepalive: true,
-      }).catch(() => {
-        navigator.sendBeacon("/api/chat/disconnect", disconnectData)
-      })
-    }
-
-    this.userId = null
-    this.status = "disconnected"
-    this.messageCount = 0
-    this.consecutiveErrors = 0
-    this.onStatusChange("disconnected")
-  }
-
-  getUserId(): string | null {
-    return this.userId
-  }
-
-  getStatus(): ChatStatus {
-    return this.status
-  }
-
-  isReady(): boolean {
-    return this.userId !== null && !this.isIntentionalDisconnect
   }
 }

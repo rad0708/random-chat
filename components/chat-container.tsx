@@ -53,7 +53,9 @@ export function ChatContainer() {
   const settings = useSettings()
 
   useEffect(() => {
-    soundManagerRef.current.setEnabled(settings.soundEnabled)
+    if (soundManagerRef.current) {
+      soundManagerRef.current.setEnabled(settings.soundEnabled)
+    }
   }, [settings.soundEnabled])
 
   useEffect(() => {
@@ -117,7 +119,9 @@ export function ChatContainer() {
           }, 1000)
 
           addSystemMessage("상대와 연결되었습니다!")
-          soundManagerRef.current.playConnectSound()
+          if (soundManagerRef.current) {
+            soundManagerRef.current.playConnectSound()
+          }
         }
 
         if (status === "disconnected") {
@@ -135,7 +139,9 @@ export function ChatContainer() {
             messageIdsRef.current.add(messageId)
             if (msg.sender === "partner") {
               addMessage(msg.content, msg.sender, msg.timestamp, "sent")
-              soundManagerRef.current.playMessageSound()
+              if (soundManagerRef.current) {
+                soundManagerRef.current.playMessageSound()
+              }
               if (!isAtBottom) {
                 setUnreadCount((prev) => prev + 1)
               }
@@ -156,7 +162,9 @@ export function ChatContainer() {
           timerIntervalRef.current = undefined
         }
         addSystemMessage("상대가 대화를 종료했습니다.")
-        soundManagerRef.current.playDisconnectSound()
+        if (soundManagerRef.current) {
+          soundManagerRef.current.playDisconnectSound()
+        }
         setChatDuration(0)
         setPartnerDisconnected(true)
         setChatState("disconnected")
@@ -218,7 +226,7 @@ export function ChatContainer() {
       document.removeEventListener("visibilitychange", handleVisibilityChange)
       window.removeEventListener("pagehide", handlePageHide)
     }
-  }, [])
+  }, [toast])
 
   useEffect(() => {
     if (isAtBottom && isMounted) {
@@ -260,6 +268,15 @@ export function ChatContainer() {
       toast({
         title: "메시지를 보낼 수 없습니다",
         description: "채팅 상대가 연결되지 않았습니다.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    if (partnerDisconnected) {
+      toast({
+        title: "메시지를 보낼 수 없습니다",
+        description: "상대가 대화를 종료했습니다.",
         variant: "destructive",
       })
       return
@@ -332,12 +349,12 @@ export function ChatContainer() {
     if (settings.showTypingIndicator) {
       clientRef.current?.sendTyping(false)
     }
-  }, [inputValue, chatState, lastMessageTime, settings.showTypingIndicator, toast])
+  }, [inputValue, chatState, lastMessageTime, partnerDisconnected, settings.showTypingIndicator, toast])
 
   const handleInputChange = (value: string) => {
     setInputValue(value)
 
-    if (chatState === "chatting" && settings.showTypingIndicator) {
+    if (chatState === "chatting" && settings.showTypingIndicator && !partnerDisconnected) {
       clientRef.current?.sendTyping(true)
 
       if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
@@ -402,6 +419,8 @@ export function ChatContainer() {
   }
 
   const remainingChars = MAX_MESSAGE_LENGTH - inputValue.length
+
+  const showInput = chatState === "chatting" || partnerDisconnected
 
   return (
     <div className="flex h-full relative">
@@ -548,41 +567,43 @@ export function ChatContainer() {
           <div ref={messagesEndRef} />
         </div>
 
-        <div className="p-4 border-t bg-card/95 backdrop-blur-md shadow-sm">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs text-foreground/60">
-              {remainingChars < 50 && !partnerDisconnected && (
-                <span className={cn(remainingChars < 0 && "text-destructive font-medium")}>
-                  {remainingChars}자 남음
-                </span>
-              )}
-            </span>
+        {showInput && (
+          <div className="p-4 border-t bg-card/95 backdrop-blur-md shadow-sm">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-foreground/60">
+                {remainingChars < 50 && !partnerDisconnected && (
+                  <span className={cn(remainingChars < 0 && "text-destructive font-medium")}>
+                    {remainingChars}자 남음
+                  </span>
+                )}
+              </span>
+            </div>
+            <div className="flex gap-2">
+              <Input
+                value={inputValue}
+                onChange={(e) => handleInputChange(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault()
+                    handleSendMessage()
+                  }
+                }}
+                placeholder={partnerDisconnected ? "상대가 나갔습니다" : "메시지를 입력하세요..."}
+                className="flex-1 h-10 bg-background"
+                maxLength={MAX_MESSAGE_LENGTH}
+                disabled={partnerDisconnected}
+              />
+              <Button
+                onClick={handleSendMessage}
+                size="icon"
+                disabled={!inputValue.trim() || partnerDisconnected}
+                className="h-10 w-10 shadow-sm"
+              >
+                <Send className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
-          <div className="flex gap-2">
-            <Input
-              value={inputValue}
-              onChange={(e) => handleInputChange(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault()
-                  handleSendMessage()
-                }
-              }}
-              placeholder={partnerDisconnected ? "상대가 나갔습니다" : "메시지를 입력하세요..."}
-              className="flex-1 h-10 bg-background"
-              maxLength={MAX_MESSAGE_LENGTH}
-              disabled={partnerDisconnected}
-            />
-            <Button
-              onClick={handleSendMessage}
-              size="icon"
-              disabled={!inputValue.trim() || partnerDisconnected}
-              className="h-10 w-10 shadow-sm"
-            >
-              <Send className="w-4 h-4" />
-            </Button>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   )

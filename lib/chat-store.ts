@@ -17,9 +17,9 @@ class ChatStore {
   private sessions = new Map<string, ChatSession>()
   private queue: QueueEntry[] = []
   private queueSet = new Set<string>()
-  private readonly SESSION_TIMEOUT = 30 * 1000 // 30 seconds
-  private readonly CLEANUP_INTERVAL = 10 * 1000 // 10 seconds
-  private readonly POLL_TIMEOUT = 10 * 1000 // 10 seconds - if no poll in 10s, session is dead
+  private readonly SESSION_TIMEOUT = 60 * 1000 // 60 seconds
+  private readonly CLEANUP_INTERVAL = 15 * 1000 // 15 seconds
+  private readonly POLL_TIMEOUT = 15 * 1000 // 15 seconds
   private matchingLock = new Set<string>()
 
   constructor() {
@@ -77,12 +77,17 @@ class ChatStore {
     if (!this.queueSet.has(userId)) {
       this.queue.push({ userId, timestamp: Date.now() })
       this.queueSet.add(userId)
+      console.log("[v0] Added to queue userId:", userId, "Queue size:", this.queue.length)
     }
   }
 
   removeFromQueue(userId: string) {
+    const sizeBefore = this.queue.length
     this.queue = this.queue.filter((entry) => entry.userId !== userId)
     this.queueSet.delete(userId)
+    if (sizeBefore !== this.queue.length) {
+      console.log("[v0] Removed from queue userId:", userId, "Queue size:", this.queue.length)
+    }
   }
 
   findMatch(userId: string): string | null {
@@ -102,7 +107,6 @@ class ChatStore {
 
     this.removeFromQueue(userId)
 
-    // Find first available user in queue
     for (let i = 0; i < this.queue.length; i++) {
       const entry = this.queue[i]
 
@@ -119,7 +123,15 @@ class ChatStore {
       const partnerSession = this.sessions.get(entry.userId)
 
       if (partnerSession && !partnerSession.partnerId && entry.userId !== userId) {
-        // Match found!
+        const timeSinceQueued = Date.now() - entry.timestamp
+        if (timeSinceQueued > this.SESSION_TIMEOUT) {
+          console.log("[v0] Queue entry expired, removing userId:", entry.userId)
+          this.queue.splice(i, 1)
+          this.queueSet.delete(entry.userId)
+          i--
+          continue
+        }
+
         console.log("[v0] Match found! userId:", userId, "partnerId:", entry.userId)
         this.queue.splice(i, 1)
         this.queueSet.delete(entry.userId)
@@ -128,7 +140,6 @@ class ChatStore {
       }
     }
 
-    // This prevents issues but still allows users to wait
     console.log("[v0] No match found, adding to queue userId:", userId)
     this.addToQueue(userId)
     this.matchingLock.delete(userId)
@@ -141,6 +152,7 @@ class ChatStore {
       this.matchingLock.delete(userId)
       this.matchingLock.delete(partnerId)
       this.removeFromQueue(userId)
+      this.removeFromQueue(partnerId)
       return
     }
 
@@ -189,6 +201,7 @@ class ChatStore {
 
     session.partnerId = null
     session.isTyping = false
+    session.messages = []
   }
 
   addMessage(userId: string, content: string, sender: "user" | "partner") {
@@ -202,8 +215,8 @@ class ChatStore {
       session.messages.push(message)
       session.lastActivity = Date.now()
 
-      if (session.messages.length > 1000) {
-        session.messages = session.messages.slice(-1000)
+      if (session.messages.length > 500) {
+        session.messages = session.messages.slice(-500)
       }
     }
   }
@@ -226,7 +239,7 @@ class ChatStore {
 
     this.sessions.forEach((session, userId) => {
       const timeSinceActivity = now - session.lastActivity
-      if (timeSinceActivity > this.SESSION_TIMEOUT || timeSinceActivity > this.POLL_TIMEOUT) {
+      if (timeSinceActivity > this.SESSION_TIMEOUT) {
         console.log("[v0] Cleaning up inactive session - userId:", userId, "inactive for:", timeSinceActivity, "ms")
         toDelete.push(userId)
       }
@@ -241,6 +254,8 @@ class ChatStore {
       if (now - entry.timestamp < this.SESSION_TIMEOUT && this.sessions.has(entry.userId)) {
         validQueue.push(entry)
         validQueueSet.add(entry.userId)
+      } else {
+        console.log("[v0] Removing stale queue entry userId:", entry.userId)
       }
     })
 
@@ -249,6 +264,7 @@ class ChatStore {
 
     this.matchingLock.forEach((userId) => {
       if (!this.sessions.has(userId)) {
+        console.log("[v0] Removing stale lock for userId:", userId)
         this.matchingLock.delete(userId)
       }
     })

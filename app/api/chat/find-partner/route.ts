@@ -29,13 +29,21 @@ export async function POST(req: NextRequest) {
       chatStore.disconnectPartner(userId)
     }
 
-    // Try to find a match
     const partnerId = chatStore.findMatch(userId)
     console.log("[v0] Match result - userId:", userId, "partnerId:", partnerId)
 
     if (partnerId) {
       if (partnerId === userId) {
         console.error("[v0] ERROR: Attempted to match user with themselves! userId:", userId)
+        return NextResponse.json({
+          status: "waiting",
+          onlineCount: chatStore.getOnlineCount(),
+        })
+      }
+
+      const partnerSession = chatStore.getSession(partnerId)
+      if (!partnerSession) {
+        console.error("[v0] ERROR: Partner session not found after match! partnerId:", partnerId)
         return NextResponse.json({
           status: "waiting",
           onlineCount: chatStore.getOnlineCount(),

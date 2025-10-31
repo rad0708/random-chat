@@ -26,7 +26,8 @@ function filterMessage(content: string): string {
 
 export async function POST(req: NextRequest) {
   try {
-    const { userId, content } = await req.json()
+    const body = await req.json().catch(() => ({}))
+    const { userId, content } = body
 
     if (!userId || typeof userId !== "string") {
       return NextResponse.json({ error: "Invalid userId" }, { status: 400 })
@@ -55,6 +56,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid chat state" }, { status: 400 })
     }
 
+    const partnerSession = chatStore.getSession(session.partnerId)
+    if (!partnerSession) {
+      console.error("[v0] ERROR: Partner session not found")
+      session.partnerId = null
+      return NextResponse.json({ error: "No active chat" }, { status: 400 })
+    }
+
     const filtered = filterMessage(content)
 
     chatStore.addMessage(userId, filtered, "user")
@@ -65,7 +73,7 @@ export async function POST(req: NextRequest) {
       onlineCount: chatStore.getOnlineCount(),
     })
   } catch (error) {
-    console.error("Send message error:", error)
+    console.error("[v0] Send message error:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
